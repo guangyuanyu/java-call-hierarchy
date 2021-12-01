@@ -9,6 +9,7 @@ import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
 import com.github.javaparser.symbolsolver.utils.SymbolSolverCollectionStrategy;
 import com.github.javaparser.utils.ProjectRoot;
 import com.github.javaparser.utils.SourceRoot;
+import org.joker.java.call.hierarchy.core.JavaParserConfiguration;
 
 import java.io.IOException;
 import java.nio.file.Paths;
@@ -22,7 +23,7 @@ public class CallHierarchy {
     private ProjectRoot projectRoot;
 
     public CallHierarchy(Config config) throws IOException {
-        ParserConfiguration parserConfiguration = JavaParseUtil.buildParserConfiguration(config.getDependencyProjectPathSet(), config.getDependencyJarPathSet());
+        ParserConfiguration parserConfiguration = JavaParserConfiguration.getParserConfiguration(config.getProjectPath(), config.getDependencyProjectPathSet(), config.getDependencyJarPathSet());
         projectRoot = new SymbolSolverCollectionStrategy(parserConfiguration).collect(Paths.get(config.getProjectPath()));
     }
 

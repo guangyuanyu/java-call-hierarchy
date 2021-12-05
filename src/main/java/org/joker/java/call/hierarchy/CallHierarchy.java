@@ -1,6 +1,5 @@
 package org.joker.java.call.hierarchy;
 
-import com.github.javaparser.ParseResult;
 import com.github.javaparser.ParserConfiguration;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.MethodDeclaration;
@@ -9,17 +8,20 @@ import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
 import com.github.javaparser.symbolsolver.utils.SymbolSolverCollectionStrategy;
 import com.github.javaparser.utils.ProjectRoot;
 import com.github.javaparser.utils.SourceRoot;
+import org.joker.java.call.hierarchy.core.Hierarchy;
 import org.joker.java.call.hierarchy.core.JavaParserConfiguration;
+import org.joker.java.call.hierarchy.core.JavaParserProxy;
 
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 
 public class CallHierarchy {
 
+    private JavaParserProxy javaParserProxy = new JavaParserProxy();
     private ProjectRoot projectRoot;
 
     public CallHierarchy(Config config) throws IOException {
@@ -27,46 +29,71 @@ public class CallHierarchy {
         projectRoot = new SymbolSolverCollectionStrategy(parserConfiguration).collect(Paths.get(config.getProjectPath()));
     }
 
-    public List<MethodDeclaration> parseMethodList(String packageName, String javaName) throws IOException {
-        List<MethodDeclaration> list = new ArrayList<>(2);
-        List<SourceRoot> sourceRootList = projectRoot.getSourceRoots();
-        for (SourceRoot sourceRoot : sourceRootList) {
-            ParseResult<CompilationUnit> parseResult = sourceRoot.tryToParse(packageName, javaName + ".java");
-            List<MethodDeclaration> methodDeclarationList = parseResult.getResult()
-                    .orElseThrow()
-                    .findAll(MethodDeclaration.class);
-            list.addAll(methodDeclarationList);
+    public List<ResolvedMethodDeclaration> parseMethod(String packageName, String javaName, String methodName) throws IOException {
+        List<ResolvedMethodDeclaration> list = new ArrayList<>();
+        String methodQualifiedSignature = String.format("%s.%s.%s", packageName, javaName, methodName);
+        List<SourceRoot> sourceRoots = javaParserProxy.getSourceRoots(projectRoot);
+        for (SourceRoot sourceRoot : sourceRoots) {
+            List<CompilationUnit> compilationUnits = javaParserProxy.getCompilationUnits(sourceRoot);
+            for (CompilationUnit compilationUnit : compilationUnits) {
+                List<ResolvedMethodDeclaration> resolvedMethodDeclarations = compilationUnit.findAll(MethodCallExpr.class)
+                        .stream()
+                        .filter(f -> f.getNameAsString().contains(methodName))
+                        .filter(f -> f.resolve().getQualifiedSignature().contains(methodQualifiedSignature))
+                        .map(m -> JavaParseUtil.getParentNode(m, MethodDeclaration.class).resolve())
+                        .toList();
+                list.addAll(resolvedMethodDeclarations);
+            }
         }
         return list;
     }
 
-    public void printMethod(String packageName, String javaName) throws IOException {
-        System.out.println("------ start print method qualified signature ------");
-        parseMethodList(packageName, javaName).forEach(f -> System.out.println(f.resolve().getQualifiedSignature()));
-        System.out.println("------  end print method qualified signature  ------");
-    }
-
-    public Set<ResolvedMethodDeclaration> getResolvedMethodDeclarationSet(MethodDeclaration methodDeclaration) throws IOException {
-        Set<ResolvedMethodDeclaration> set = new HashSet<>(2);
-        List<SourceRoot> sourceRootList = projectRoot.getSourceRoots();
-        for (SourceRoot sourceRoot : sourceRootList) {
-            sourceRoot.tryToParse();
-            List<CompilationUnit> compilationUnitList = sourceRoot.getCompilationUnits();
-            for (CompilationUnit cu : compilationUnitList) {
-                List<MethodCallExpr> methodCallExprList = cu.findAll(MethodCallExpr.class);
-                Set<ResolvedMethodDeclaration> methodCallSet = JavaParseUtil.getMethodCallSet(methodCallExprList, methodDeclaration);
-                set.addAll(methodCallSet);
-            }
-        }
-        return set;
-    }
-
-    public void printMethodCall(String packageName, String javaName, String methodQualifiedSignature) throws IOException {
-        MethodDeclaration methodDeclaration = parseMethodList(packageName, javaName).stream().filter(f -> f.resolve().getQualifiedSignature().equals(methodQualifiedSignature)).findAny().orElseThrow();
-        Set<ResolvedMethodDeclaration> resolvedMethodDeclarationSet = getResolvedMethodDeclarationSet(methodDeclaration);
+    public void printParseMethod(String packageName, String javaName, String methodName) throws IOException {
         System.out.println("------ start print method call ------");
-        resolvedMethodDeclarationSet.forEach(f -> System.out.println(f.getQualifiedSignature()));
+        parseMethod(packageName, javaName, methodName)
+                .stream()
+                .map(ResolvedMethodDeclaration::getQualifiedSignature)
+                .forEach(System.out::println);
         System.out.println("------  end print method call  ------");
+    }
+
+    public List<Hierarchy<ResolvedMethodDeclaration>> parseMethodRecursion(String packageName, String javaName, String methodName) throws IOException {
+        List<ResolvedMethodDeclaration> resolvedMethodDeclarations = parseMethod(packageName, javaName, methodName);
+        if (resolvedMethodDeclarations.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<Hierarchy<ResolvedMethodDeclaration>> hierarchies = resolvedMethodDeclarations.stream().map(Hierarchy::new).toList();
+        for (Hierarchy<ResolvedMethodDeclaration> hierarchy : hierarchies) {
+            parseMethodRecursion(hierarchy);
+        }
+
+        return hierarchies;
+    }
+
+    public void parseMethodRecursion(Hierarchy<ResolvedMethodDeclaration> hierarchy) throws IOException {
+        ResolvedMethodDeclaration target = hierarchy.getTarget();
+        List<ResolvedMethodDeclaration> resolvedMethodDeclarations = parseMethod(target.getPackageName(), target.getClassName(), target.getName());
+        if (resolvedMethodDeclarations.isEmpty()) {
+            return;
+        }
+        for (ResolvedMethodDeclaration resolvedMethodDeclaration : resolvedMethodDeclarations) {
+            Hierarchy<ResolvedMethodDeclaration> call = new Hierarchy<>(resolvedMethodDeclaration);
+            hierarchy.addCall(call);
+            parseMethodRecursion(call);
+        }
+    }
+
+    public void printParseMethodRecursion(String packageName, String javaName, String methodName) throws IOException {
+        System.out.println("------ start print method call recursion ------");
+        parseMethodRecursion(packageName, javaName, methodName)
+                .stream()
+                .map(Hierarchy::toStringList)
+                .flatMap(Collection::stream)
+                .sorted()
+                .distinct()
+                .forEach(System.out::println);
+        System.out.println("------  end print method call recursion  ------");
     }
 
 }

@@ -11,13 +11,13 @@ import org.apache.maven.shared.invoker.*;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class JavaParserConfiguration {
 
@@ -26,15 +26,11 @@ public class JavaParserConfiguration {
     }
 
     public static ParserConfiguration getParserConfiguration(String projectPath, Set<String> dependencySourcePathSet, Set<String> dependencyJarPathSet) throws IOException {
-        File file = new File(projectPath);
-        if (file.listFiles() != null
-                && Stream.of(file.listFiles()).map(File::getName).anyMatch("pom.xml"::equals)) {
-            if (dependencyJarPathSet == null) {
-                dependencyJarPathSet = new HashSet<>();
-            }
-            Set<String> mavenDependencyJarPath = getMavenDependencyJarPath(projectPath);
-            dependencyJarPathSet.addAll(mavenDependencyJarPath);
+        if (dependencyJarPathSet == null) {
+            dependencyJarPathSet = new HashSet<>();
         }
+        Set<String> mavenDependencyJarPath = getMavenDependencyJarPath(projectPath);
+        dependencyJarPathSet.addAll(mavenDependencyJarPath);
 
         ParserConfiguration parserConfiguration = new ParserConfiguration();
         parserConfiguration.setAttributeComments(false);
@@ -45,6 +41,11 @@ public class JavaParserConfiguration {
     public static Set<String> getMavenDependencyJarPath(String projectPath) {
         Set<String> dependencyJarPathSet = new HashSet<>();
 
+        boolean anyMatch = Arrays.stream(Path.of(projectPath).toFile().listFiles()).map(File::getName).anyMatch("pom.xml"::equals);
+        if (anyMatch) {
+            return dependencyJarPathSet;
+        }
+
         InvocationRequest request = new DefaultInvocationRequest();
         request.setJavaHome(new File(ConfigProperties.JAVA_HOME));
         request.setPomFile(new File(projectPath + "/pom.xml"));
@@ -52,6 +53,7 @@ public class JavaParserConfiguration {
 
         Invoker invoker = new DefaultInvoker();
         invoker.setMavenHome(new File(ConfigProperties.MAVEN_HOME));
+        invoker.setInputStream(InputStream.nullInputStream());
         invoker.setOutputHandler(dependencyJarPathSet::add);
         try {
             invoker.execute(request);

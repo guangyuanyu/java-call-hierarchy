@@ -31,15 +31,15 @@ public class CallHierarchy {
 
     public List<ResolvedMethodDeclaration> parseMethod(String packageName, String javaName, String methodName) throws IOException {
         List<ResolvedMethodDeclaration> list = new ArrayList<>();
-        String methodQualifiedSignature = String.format("%s.%s.%s", packageName, javaName, methodName);
+        String methodQualifiedName = String.format("%s.%s.%s", packageName, javaName, methodName);
         List<SourceRoot> sourceRoots = javaParserProxy.getSourceRoots(projectRoot);
         for (SourceRoot sourceRoot : sourceRoots) {
             List<CompilationUnit> compilationUnits = javaParserProxy.getCompilationUnits(sourceRoot);
             for (CompilationUnit compilationUnit : compilationUnits) {
                 List<ResolvedMethodDeclaration> resolvedMethodDeclarations = compilationUnit.findAll(MethodCallExpr.class)
                         .stream()
-                        .filter(f -> f.getNameAsString().contains(methodName))
-                        .filter(f -> f.resolve().getQualifiedSignature().contains(methodQualifiedSignature))
+                        .filter(f -> f.getNameAsString().equals(methodName))
+                        .filter(f -> f.resolve().getQualifiedName().equals(methodQualifiedName))
                         .map(m -> JavaParseUtil.getParentNode(m, MethodDeclaration.class).resolve())
                         .toList();
                 list.addAll(resolvedMethodDeclarations);

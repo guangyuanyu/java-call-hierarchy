@@ -37,20 +37,31 @@ public class Hierarchy<T> {
     }
 
     public void addCall(Hierarchy<T> call) {
+        Function<T, String> function = getFunction();
+        String s1 = function.apply(call.getTarget());
+        for (Hierarchy<T> hierarchy : calls) {
+            String s2 = function.apply(hierarchy.target);
+            if (s1.equals(s2)) {
+                return;
+            }
+        }
         calls.add(call);
     }
 
     public List<String> toStringList() {
-        if (target instanceof ResolvedMethodDeclaration) {
-            return toStringList(((ResolvedMethodDeclaration) target).getQualifiedSignature(), calls, hierarchy -> ((ResolvedMethodDeclaration) hierarchy.getTarget()).getQualifiedSignature());
-        }
-        return toStringList("", calls, Object::toString);
+        Function<T, String> function = getFunction();
+        String prefix = function.apply(target);
+        return toStringList(prefix, calls, function);
     }
 
-    public List<String> toStringList(String prefix, List<Hierarchy<T>> calls, Function<Hierarchy<T>, String> function) {
+    public List<String> toStringList(String prefix, List<Hierarchy<T>> calls, Function<T, String> function) {
         List<String> list = new ArrayList<>();
+        if (calls.isEmpty()) {
+            list.add(prefix);
+            return list;
+        }
         for (Hierarchy<T> call : calls) {
-            String s = String.format("%s -> %s", prefix, function.apply(call));
+            String s = String.format("%s -> %s", prefix, function.apply(call.target));
             if (call.getCalls().isEmpty()) {
                 list.add(s);
             } else {
@@ -59,6 +70,17 @@ public class Hierarchy<T> {
             }
         }
         return list;
+    }
+
+    private Function<T, String> getFunction() {
+        return declaration -> {
+            if (declaration instanceof ResolvedMethodDeclaration resolvedMethodDeclaration) {
+                return resolvedMethodDeclaration.getQualifiedName();
+            } else {
+                System.err.println("function error: " + declaration.toString());
+                return "";
+            }
+        };
     }
 
 }

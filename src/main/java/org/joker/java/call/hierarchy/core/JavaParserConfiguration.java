@@ -42,12 +42,15 @@ public class JavaParserConfiguration {
         Set<String> dependencyJarPathSet = new HashSet<>();
 
         boolean anyMatch = Arrays.stream(Path.of(projectPath).toFile().listFiles()).map(File::getName).anyMatch("pom.xml"::equals);
-        if (anyMatch) {
+        if (!anyMatch) {
             return dependencyJarPathSet;
         }
 
         InvocationRequest request = new DefaultInvocationRequest();
-        request.setJavaHome(new File(ConfigProperties.JAVA_HOME));
+        request.setJavaHome(new File(DefaultProperties.JAVA_HOME.getEnv()));
+        if (!ConfigProperties.MAVEN_SETTING.isEmpty()) {
+            request.setUserSettingsFile(new File(ConfigProperties.MAVEN_SETTING));
+        }
         request.setPomFile(new File(projectPath + "/pom.xml"));
         request.setGoals(Collections.singletonList("dependency:build-classpath"));
 
@@ -63,7 +66,7 @@ public class JavaParserConfiguration {
 
         return dependencyJarPathSet.stream()
                 .filter(f -> !f.startsWith("["))
-                .map(m -> m.split(";"))
+                .map(m -> DefaultProperties.OS_NAME.getEnv().startsWith("Win") ? m.split(";") : m.split(":"))
                 .flatMap(Arrays::stream)
                 .collect(Collectors.toSet());
     }

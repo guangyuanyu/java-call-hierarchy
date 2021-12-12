@@ -2,9 +2,12 @@ package org.joker.java.call.hierarchy;
 
 import com.github.javaparser.ParserConfiguration;
 import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.expr.MethodCallExpr;
+import com.github.javaparser.resolution.SymbolResolver;
 import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
+import com.github.javaparser.resolution.types.ResolvedType;
 import com.github.javaparser.symbolsolver.utils.SymbolSolverCollectionStrategy;
 import com.github.javaparser.utils.ProjectRoot;
 import com.github.javaparser.utils.SourceRoot;
@@ -31,15 +34,34 @@ public class CallHierarchy {
 
     public List<ResolvedMethodDeclaration> parseMethod(String packageName, String javaName, String methodName) throws IOException {
         List<ResolvedMethodDeclaration> list = new ArrayList<>();
+        String classQualifiedName = String.format("%s.%s", packageName, javaName);
         String methodQualifiedName = String.format("%s.%s.%s", packageName, javaName, methodName);
         List<SourceRoot> sourceRoots = javaParserProxy.getSourceRoots(projectRoot);
         for (SourceRoot sourceRoot : sourceRoots) {
+            SymbolResolver symbolResolver = sourceRoot.getParserConfiguration().getSymbolResolver().orElseThrow();
             List<CompilationUnit> compilationUnits = javaParserProxy.getCompilationUnits(sourceRoot);
             for (CompilationUnit compilationUnit : compilationUnits) {
                 List<ResolvedMethodDeclaration> resolvedMethodDeclarations = compilationUnit.findAll(MethodCallExpr.class)
                         .stream()
                         .filter(f -> f.getNameAsString().equals(methodName))
-                        .filter(f -> f.resolve().getQualifiedName().equals(methodQualifiedName))
+                        .filter(f -> {
+                            try {
+                                return f.resolve().getQualifiedName().equals(methodQualifiedName);
+                            } catch (Exception e) {
+                                if (f.getScope().isEmpty()) {
+                                    return JavaParseUtil.getParentNode(f, ClassOrInterfaceDeclaration.class).getFullyQualifiedName().orElseThrow().equals(classQualifiedName);
+                                }
+                                ResolvedType resolvedType = symbolResolver.calculateType(f.getScope().get());
+                                if (resolvedType.isReferenceType()) {
+                                    return resolvedType.asReferenceType().getQualifiedName().equals(classQualifiedName);
+                                } else if (resolvedType.isConstraint()) {
+                                    return resolvedType.asConstraintType().getBound().asReferenceType().getQualifiedName().equals(classQualifiedName);
+                                } else {
+                                    System.err.println("resolve error: " + f);
+                                    return false;
+                                }
+                            }
+                        })
                         .map(m -> JavaParseUtil.getParentNode(m, MethodDeclaration.class).resolve())
                         .toList();
                 list.addAll(resolvedMethodDeclarations);

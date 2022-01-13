@@ -26,8 +26,8 @@ public class CallHierarchy {
     private JavaParserProxy javaParserProxy = new JavaParserProxy();
     private ProjectRoot projectRoot;
 
-    List<SourceRoot> sourceRoots = Collections.emptyList();
-    Map<Path, List<CompilationUnit>> CompilationUnitMap = new HashMap<>();
+    List<SourceRoot> sourceRoots = null;
+    Map<Path, List<CompilationUnit>> compilationUnitMap = new HashMap<>();
 
     public CallHierarchy(Config config) throws IOException {
         ParserConfiguration parserConfiguration = JavaParserConfiguration.getParserConfiguration(config.getProjectPath(), config.getDependencyProjectPathSet(), config.getDependencyJarPathSet());
@@ -38,10 +38,16 @@ public class CallHierarchy {
         List<ResolvedMethodDeclaration> list = new ArrayList<>();
         String classQualifiedName = String.format("%s.%s", packageName, javaName);
         String methodQualifiedName = String.format("%s.%s.%s", packageName, javaName, methodName);
-        List<SourceRoot> sourceRoots = javaParserProxy.getSourceRoots(projectRoot);
+        if (this.sourceRoots == null) {
+            sourceRoots = javaParserProxy.getSourceRoots(projectRoot);
+        }
         for (SourceRoot sourceRoot : sourceRoots) {
             SymbolResolver symbolResolver = sourceRoot.getParserConfiguration().getSymbolResolver().get();
-            List<CompilationUnit> compilationUnits = javaParserProxy.getCompilationUnits(sourceRoot);
+            List<CompilationUnit> compilationUnits = compilationUnitMap.get(sourceRoot.getRoot());
+            if (compilationUnits == null) {
+                compilationUnits = javaParserProxy.getCompilationUnits(sourceRoot);
+                compilationUnitMap.put(sourceRoot.getRoot(), compilationUnits);
+            }
             for (CompilationUnit compilationUnit : compilationUnits) {
                 List<ResolvedMethodDeclaration> resolvedMethodDeclarations = compilationUnit.findAll(MethodCallExpr.class)
                         .stream()

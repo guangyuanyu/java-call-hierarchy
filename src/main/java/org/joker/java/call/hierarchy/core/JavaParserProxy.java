@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class JavaParserProxy {
 
@@ -21,8 +22,7 @@ public class JavaParserProxy {
     public List<SourceRoot> getSourceRoots(ProjectRoot projectRoot) {
         return projectRoot.getSourceRoots()
                 .stream()
-                .filter(f -> f.getRoot().endsWith("main/java"))
-                .toList();
+                .filter(f -> f.getRoot().endsWith("main/java")).collect(Collectors.toList());
     }
 
     public SourceRoot getSourceRoot(Path root) {
@@ -30,7 +30,7 @@ public class JavaParserProxy {
     }
 
     public List<CompilationUnit> getCompilationUnits(SourceRoot sourceRoot) throws IOException {
-        if (sourceRoot.getParserConfiguration().getSymbolResolver().isEmpty()) {
+        if (sourceRoot.getParserConfiguration().getSymbolResolver().isPresent()) {
             // if maven project
             if (sourceRoot.getRoot().endsWith("src/main/java")) {
                 Path projectPath = sourceRoot.getRoot().getParent().getParent().getParent();

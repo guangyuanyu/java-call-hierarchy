@@ -16,16 +16,18 @@ import org.joker.java.call.hierarchy.core.JavaParserConfiguration;
 import org.joker.java.call.hierarchy.core.JavaParserProxy;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class CallHierarchy {
 
     private JavaParserProxy javaParserProxy = new JavaParserProxy();
     private ProjectRoot projectRoot;
+
+    List<SourceRoot> sourceRoots = Collections.emptyList();
+    Map<Path, List<CompilationUnit>> CompilationUnitMap = new HashMap<>();
 
     public CallHierarchy(Config config) throws IOException {
         ParserConfiguration parserConfiguration = JavaParserConfiguration.getParserConfiguration(config.getProjectPath(), config.getDependencyProjectPathSet(), config.getDependencyJarPathSet());
@@ -38,7 +40,7 @@ public class CallHierarchy {
         String methodQualifiedName = String.format("%s.%s.%s", packageName, javaName, methodName);
         List<SourceRoot> sourceRoots = javaParserProxy.getSourceRoots(projectRoot);
         for (SourceRoot sourceRoot : sourceRoots) {
-            SymbolResolver symbolResolver = sourceRoot.getParserConfiguration().getSymbolResolver().orElseThrow();
+            SymbolResolver symbolResolver = sourceRoot.getParserConfiguration().getSymbolResolver().get();
             List<CompilationUnit> compilationUnits = javaParserProxy.getCompilationUnits(sourceRoot);
             for (CompilationUnit compilationUnit : compilationUnits) {
                 List<ResolvedMethodDeclaration> resolvedMethodDeclarations = compilationUnit.findAll(MethodCallExpr.class)
@@ -48,10 +50,15 @@ public class CallHierarchy {
                             try {
                                 return f.resolve().getQualifiedName().equals(methodQualifiedName);
                             } catch (Exception e) {
-                                if (f.getScope().isEmpty()) {
-                                    return JavaParseUtil.getParentNode(f, ClassOrInterfaceDeclaration.class).getFullyQualifiedName().orElseThrow().equals(classQualifiedName);
+                                if (!f.getScope().isPresent()) {
+                                    return JavaParseUtil.getParentNode(f, ClassOrInterfaceDeclaration.class).getFullyQualifiedName().get().equals(classQualifiedName);
                                 }
-                                ResolvedType resolvedType = symbolResolver.calculateType(f.getScope().get());
+                                ResolvedType resolvedType;
+                                try {
+                                    resolvedType = symbolResolver.calculateType(f.getScope().get());
+                                } catch (Exception ex) {
+                                    return JavaParseUtil.getParentNode(f, ClassOrInterfaceDeclaration.class).getFullyQualifiedName().get().equals(classQualifiedName);
+                                }
                                 if (resolvedType.isReferenceType()) {
                                     return resolvedType.asReferenceType().getQualifiedName().equals(classQualifiedName);
                                 } else if (resolvedType.isConstraint()) {
@@ -63,7 +70,7 @@ public class CallHierarchy {
                             }
                         })
                         .map(m -> JavaParseUtil.getParentNode(m, MethodDeclaration.class).resolve())
-                        .toList();
+                        .collect(Collectors.toList());
                 list.addAll(resolvedMethodDeclarations);
             }
         }
@@ -85,7 +92,7 @@ public class CallHierarchy {
             return Collections.emptyList();
         }
 
-        List<Hierarchy<ResolvedMethodDeclaration>> hierarchies = resolvedMethodDeclarations.stream().map(Hierarchy::new).toList();
+        List<Hierarchy<ResolvedMethodDeclaration>> hierarchies = resolvedMethodDeclarations.stream().map(Hierarchy::new).collect(Collectors.toList());
         for (Hierarchy<ResolvedMethodDeclaration> hierarchy : hierarchies) {
             parseMethodRecursion(hierarchy);
         }

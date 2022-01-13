@@ -9,7 +9,7 @@ public class Main {
     public static void main(String[] args) throws IOException {
         Config config = new Config();
         // set your project path
-        config.setProjectPath(ROOT_PATH);
+        config.setProjectPath("/Users/yuguangyuan/code/csc/eagle-parent");
         // add your project dependency project path
         // config.addDependencyProjectPath("");
         // add your project dependency jar path
@@ -17,9 +17,9 @@ public class Main {
 
         CallHierarchy callHierarchy = new CallHierarchy(config);
 
-        String packageName = "org.joker.java.call.hierarchy.test";
-        String javaName = "A";
-        String method = "methodA1";
+        String packageName = "com.linkstec.raptor.eagle.frap.service";
+        String javaName = "DoubleRecordService";
+        String method = "saveCustomSno";
         callHierarchy.printParseMethodRecursion(packageName, javaName, method);
     }
 

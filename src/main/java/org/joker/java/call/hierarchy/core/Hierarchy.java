@@ -74,7 +74,8 @@ public class Hierarchy<T> {
 
     private Function<T, String> getFunction() {
         return declaration -> {
-            if (declaration instanceof ResolvedMethodDeclaration resolvedMethodDeclaration) {
+            if (declaration instanceof ResolvedMethodDeclaration ) {
+                ResolvedMethodDeclaration resolvedMethodDeclaration = (ResolvedMethodDeclaration) declaration;
                 return resolvedMethodDeclaration.getQualifiedName();
             } else {
                 System.err.println("function error: " + declaration.toString());

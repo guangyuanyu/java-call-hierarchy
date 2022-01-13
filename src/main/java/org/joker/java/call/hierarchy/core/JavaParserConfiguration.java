@@ -7,12 +7,14 @@ import com.github.javaparser.symbolsolver.resolution.typesolvers.CombinedTypeSol
 import com.github.javaparser.symbolsolver.resolution.typesolvers.JarTypeSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.JavaParserTypeSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeSolver;
+import org.apache.commons.io.input.NullInputStream;
 import org.apache.maven.shared.invoker.*;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -41,7 +43,7 @@ public class JavaParserConfiguration {
     public static Set<String> getMavenDependencyJarPath(String projectPath) {
         Set<String> dependencyJarPathSet = new HashSet<>();
 
-        boolean anyMatch = Arrays.stream(Path.of(projectPath).toFile().listFiles()).map(File::getName).anyMatch("pom.xml"::equals);
+        boolean anyMatch = Arrays.stream(Paths.get(projectPath).toFile().listFiles()).map(File::getName).anyMatch("pom.xml"::equals);
         if (!anyMatch) {
             return dependencyJarPathSet;
         }
@@ -56,7 +58,7 @@ public class JavaParserConfiguration {
 
         Invoker invoker = new DefaultInvoker();
         invoker.setMavenHome(new File(ConfigProperties.MAVEN_HOME));
-        invoker.setInputStream(InputStream.nullInputStream());
+        invoker.setInputStream(new NullInputStream(0));
         invoker.setOutputHandler(dependencyJarPathSet::add);
         try {
             invoker.execute(request);
@@ -78,14 +80,14 @@ public class JavaParserConfiguration {
 
         if (dependencySourcePathSet != null) {
             for (String dependencySourcePath : dependencySourcePathSet) {
-                JavaParserTypeSolver javaParserTypeSolver = new JavaParserTypeSolver(Path.of(dependencySourcePath));
+                JavaParserTypeSolver javaParserTypeSolver = new JavaParserTypeSolver(Paths.get(dependencySourcePath));
                 combinedTypeSolver.add(javaParserTypeSolver);
             }
         }
 
         if (dependencyJarPathSet != null) {
             for (String dependencyJarPath : dependencyJarPathSet) {
-                JarTypeSolver jarTypeSolver = new JarTypeSolver(Path.of(dependencyJarPath));
+                JarTypeSolver jarTypeSolver = new JarTypeSolver(Paths.get(dependencyJarPath));
                 combinedTypeSolver.add(jarTypeSolver);
             }
         }

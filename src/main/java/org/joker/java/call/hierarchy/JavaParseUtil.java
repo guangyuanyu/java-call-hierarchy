@@ -5,7 +5,7 @@ import com.github.javaparser.ast.Node;
 public class JavaParseUtil {
 
     public static <T extends Node> T getParentNode(Node node, Class<T> nodeType) {
-        if (node == null || node.getParentNode().isEmpty()) {
+        if (node == null || !node.getParentNode().isPresent()) {
             return null;
         }
 

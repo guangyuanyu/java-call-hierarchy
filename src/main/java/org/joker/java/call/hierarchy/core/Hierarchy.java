@@ -10,6 +10,8 @@ public class Hierarchy<T> {
 
     private T target;
     private List<Hierarchy<T>> calls;
+    private String requestMapping;
+    private String comment;
 
     public Hierarchy(T target) {
         this(target, new ArrayList<>());
@@ -34,6 +36,22 @@ public class Hierarchy<T> {
 
     public void setCalls(List<Hierarchy<T>> calls) {
         this.calls = calls;
+    }
+
+    public String getRequestMapping() {
+        return requestMapping;
+    }
+
+    public void setRequestMapping(String requestMapping) {
+        this.requestMapping = requestMapping;
+    }
+
+    public String getComment() {
+        return comment;
+    }
+
+    public void setComment(String comment) {
+        this.comment = comment;
     }
 
     public void addCall(Hierarchy<T> call) {

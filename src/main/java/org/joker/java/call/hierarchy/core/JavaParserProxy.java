@@ -38,7 +38,7 @@ public class JavaParserProxy {
                 if (anyMatch) {
                     ParserConfiguration parserConfiguration = JavaParserConfiguration.getParserConfiguration(projectPath.toString());
                     sourceRoot.setParserConfiguration(parserConfiguration);
-                    System.out.println(String.format(">>> parser pom.xml: %s%spom.xml", sourceRoot.getRoot(), File.separator));
+                    System.out.println(String.format(">>> parser pom.xml: %s%spom.xml", projectPath.toFile().getAbsolutePath(), File.separator));
                 }
             }
         }

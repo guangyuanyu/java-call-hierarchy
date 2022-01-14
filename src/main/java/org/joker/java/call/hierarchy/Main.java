@@ -9,7 +9,7 @@ public class Main {
     public static void main(String[] args) throws IOException {
         Config config = new Config();
         // set your project path
-        config.setProjectPath("/Users/yuguangyuan/code/csc/eagle-parent");
+        config.setProjectPath("/Users/yuguangyuan/code/csc/eagle-parent/zxjt-smjj");
         // add your project dependency project path
         // config.addDependencyProjectPath("");
         // add your project dependency jar path

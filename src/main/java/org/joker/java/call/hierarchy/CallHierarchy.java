@@ -115,6 +115,7 @@ public class CallHierarchy {
         for (ResolvedMethodDeclaration resolvedMethodDeclaration : resolvedMethodDeclarations) {
             Hierarchy<ResolvedMethodDeclaration> call = new Hierarchy<>(resolvedMethodDeclaration);
             hierarchy.addCall(call);
+
             parseMethodRecursion(call);
         }
     }

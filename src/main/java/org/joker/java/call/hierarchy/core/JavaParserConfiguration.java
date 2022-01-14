@@ -36,7 +36,7 @@ public class JavaParserConfiguration {
 
         ParserConfiguration parserConfiguration = new ParserConfiguration();
         parserConfiguration.setAttributeComments(false);
-        parserConfiguration.setSymbolResolver(new JavaSymbolSolver(getTypeSolver(dependencySourcePathSet, dependencyJarPathSet)));
+        parserConfiguration.setSymbolResolver(new JavaSymbolSolver(getTypeSolver(projectPath, dependencySourcePathSet, dependencyJarPathSet)));
         return parserConfiguration;
     }
 
@@ -73,24 +73,27 @@ public class JavaParserConfiguration {
                 .collect(Collectors.toSet());
     }
 
-    public static TypeSolver getTypeSolver(Set<String> dependencySourcePathSet, Set<String> dependencyJarPathSet) throws IOException {
+    public static TypeSolver getTypeSolver(String projectPath, Set<String> dependencySourcePathSet, Set<String> dependencyJarPathSet) throws IOException {
         CombinedTypeSolver combinedTypeSolver = new CombinedTypeSolver();
+
+        File file = Paths.get(projectPath, "/src/main/java").toFile();
+        combinedTypeSolver.add(new JavaParserTypeSolver(file));
 
         combinedTypeSolver.add(new ReflectionTypeSolver(false));
 
-        if (dependencySourcePathSet != null) {
-            for (String dependencySourcePath : dependencySourcePathSet) {
-                JavaParserTypeSolver javaParserTypeSolver = new JavaParserTypeSolver(Paths.get(dependencySourcePath));
-                combinedTypeSolver.add(javaParserTypeSolver);
-            }
-        }
-
-        if (dependencyJarPathSet != null) {
-            for (String dependencyJarPath : dependencyJarPathSet) {
-                JarTypeSolver jarTypeSolver = new JarTypeSolver(Paths.get(dependencyJarPath));
-                combinedTypeSolver.add(jarTypeSolver);
-            }
-        }
+//        if (dependencySourcePathSet != null) {
+//            for (String dependencySourcePath : dependencySourcePathSet) {
+//                JavaParserTypeSolver javaParserTypeSolver = new JavaParserTypeSolver(Paths.get(dependencySourcePath));
+//                combinedTypeSolver.add(javaParserTypeSolver);
+//            }
+//        }
+//
+//        if (dependencyJarPathSet != null) {
+//            for (String dependencyJarPath : dependencyJarPathSet) {
+//                JarTypeSolver jarTypeSolver = new JarTypeSolver(Paths.get(dependencyJarPath));
+//                combinedTypeSolver.add(jarTypeSolver);
+//            }
+//        }
 
         return combinedTypeSolver;
     }

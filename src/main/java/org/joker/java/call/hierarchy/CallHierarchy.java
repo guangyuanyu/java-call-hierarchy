@@ -2,12 +2,18 @@ package org.joker.java.call.hierarchy;
 
 import com.github.javaparser.ParserConfiguration;
 import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.Node;
+import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.expr.AnnotationExpr;
+import com.github.javaparser.ast.expr.MemberValuePair;
 import com.github.javaparser.ast.expr.MethodCallExpr;
+import com.github.javaparser.ast.expr.StringLiteralExpr;
 import com.github.javaparser.resolution.SymbolResolver;
 import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
 import com.github.javaparser.resolution.types.ResolvedType;
+import com.github.javaparser.symbolsolver.javaparsermodel.declarations.JavaParserMethodDeclaration;
 import com.github.javaparser.symbolsolver.utils.SymbolSolverCollectionStrategy;
 import com.github.javaparser.utils.ProjectRoot;
 import com.github.javaparser.utils.SourceRoot;
@@ -116,8 +122,62 @@ public class CallHierarchy {
             Hierarchy<ResolvedMethodDeclaration> call = new Hierarchy<>(resolvedMethodDeclaration);
             hierarchy.addCall(call);
 
+            processControllerMethod(call);
+
             parseMethodRecursion(call);
         }
+    }
+
+    /**
+     * 处理controller层的调用
+     * @param call
+     */
+    private void processControllerMethod(Hierarchy<ResolvedMethodDeclaration> call) {
+        String requestMappingValue = "";
+        MethodDeclaration methodDeclaration = ((JavaParserMethodDeclaration) call.getTarget()).getWrappedNode();
+
+        // 处理requestMapping的值
+        NodeList<AnnotationExpr> annotations = methodDeclaration.getAnnotations();
+        for (AnnotationExpr annotation : annotations) {
+            if ("RequestMapping".equals(annotation.getName().toString())) {
+                requestMappingValue = extractRequestMapping(annotations);
+
+                if (methodDeclaration.getParentNode().isPresent()) {
+                    Node parent = methodDeclaration.getParentNode().get();
+                    ClassOrInterfaceDeclaration classNode = (ClassOrInterfaceDeclaration) parent;
+                    NodeList<AnnotationExpr> annoList = classNode.getAnnotations();
+                    String classRequestMapping = extractRequestMapping(annoList);
+                    requestMappingValue = Paths.get(classRequestMapping, requestMappingValue).toString();
+                }
+                break;
+            }
+        }
+
+
+
+        call.setRequestMapping(requestMappingValue);
+    }
+
+    private String extractRequestMapping(NodeList<AnnotationExpr> annoList) {
+        String value = "";
+        for (AnnotationExpr annotationExpr : annoList) {
+            if ("RequestMapping".equals(annotationExpr.getName().toString())) {
+                List<Node> children = annotationExpr.getChildNodes();
+                for (Node childNode : children) {
+                    if (childNode instanceof MemberValuePair) {
+                        MemberValuePair pair = (MemberValuePair) childNode;
+                        String id = pair.getName().getId();
+                        if ("value".equals(id)) {
+                            value = pair.getValue().asLiteralStringValueExpr().getValue();
+                        }
+                    } else if (childNode instanceof StringLiteralExpr) {
+                        StringLiteralExpr expr = (StringLiteralExpr) childNode;
+                        value = expr.getValue();
+                    }
+                }
+            }
+        }
+        return value;
     }
 
     public void printParseMethodRecursion(String packageName, String javaName, String methodName) throws IOException {

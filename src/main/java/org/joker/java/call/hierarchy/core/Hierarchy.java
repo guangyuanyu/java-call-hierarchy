@@ -80,6 +80,10 @@ public class Hierarchy<T> {
         }
         for (Hierarchy<T> call : calls) {
             String s = String.format("%s -> %s", prefix, function.apply(call.target));
+            if (call.getRequestMapping() != null && !call.getRequestMapping().equals("")) {
+                String requestMapping = call.getRequestMapping();
+                s = s + "(url: " + requestMapping + ")";
+            }
             if (call.getCalls().isEmpty()) {
                 list.add(s);
             } else {

@@ -141,7 +141,6 @@ public class CallHierarchy {
         for (AnnotationExpr annotation : annotations) {
             if ("RequestMapping".equals(annotation.getName().toString())) {
                 requestMappingValue = extractRequestMapping(annotations);
-
                 if (methodDeclaration.getParentNode().isPresent()) {
                     Node parent = methodDeclaration.getParentNode().get();
                     ClassOrInterfaceDeclaration classNode = (ClassOrInterfaceDeclaration) parent;
@@ -149,13 +148,20 @@ public class CallHierarchy {
                     String classRequestMapping = extractRequestMapping(annoList);
                     requestMappingValue = Paths.get(classRequestMapping, requestMappingValue).toString();
                 }
+
+                // 处理comment
+                methodDeclaration.getComment().ifPresent(comment -> {
+                    String c = Arrays.stream(comment.getContent().split("\n")).filter(s -> !s.trim().startsWith("* @"))
+                            .reduce((s1, s2) -> s1 + "\t" + s2).orElse("").replace("\n", "").replace("\r", "");
+                    call.setComment(c);
+                });
+
                 break;
             }
         }
-
-
-
         call.setRequestMapping(requestMappingValue);
+
+
     }
 
     private String extractRequestMapping(NodeList<AnnotationExpr> annoList) {

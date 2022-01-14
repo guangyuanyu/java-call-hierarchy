@@ -35,7 +35,7 @@ public class JavaParserConfiguration {
         dependencyJarPathSet.addAll(mavenDependencyJarPath);
 
         ParserConfiguration parserConfiguration = new ParserConfiguration();
-        parserConfiguration.setAttributeComments(false);
+        parserConfiguration.setAttributeComments(true);
         parserConfiguration.setSymbolResolver(new JavaSymbolSolver(getTypeSolver(projectPath, dependencySourcePathSet, dependencyJarPathSet)));
         return parserConfiguration;
     }

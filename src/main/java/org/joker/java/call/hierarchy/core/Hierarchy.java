@@ -84,6 +84,9 @@ public class Hierarchy<T> {
                 String requestMapping = call.getRequestMapping();
                 s = s + "(url: " + requestMapping + ")";
             }
+            if (call.getComment() != null && !call.getComment().equals("")) {
+                s = s + "【" + call.getComment() + "】";
+            }
             if (call.getCalls().isEmpty()) {
                 list.add(s);
             } else {

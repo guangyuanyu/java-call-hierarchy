@@ -10,7 +10,7 @@ public class Hierarchy<T> {
 
     private T target;
     private List<Hierarchy<T>> calls;
-    private String requestMapping;
+    private String requestMapping = null;
     private String comment;
 
     public Hierarchy(T target) {

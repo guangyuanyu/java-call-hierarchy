@@ -29,8 +29,8 @@ import java.util.stream.Collectors;
 
 public class CallHierarchy {
 
-    private JavaParserProxy javaParserProxy = new JavaParserProxy();
-    private ProjectRoot projectRoot;
+    public JavaParserProxy javaParserProxy = new JavaParserProxy();
+    public ProjectRoot projectRoot;
 
     List<SourceRoot> sourceRoots = null;
     Map<Path, List<CompilationUnit>> compilationUnitMap = new HashMap<>();
@@ -124,6 +124,9 @@ public class CallHierarchy {
 
             processControllerMethod(call);
 
+            if (hierarchy.getRequestMapping() != null && !hierarchy.getRequestMapping().equals("")) {
+                continue;
+            }
             parseMethodRecursion(call);
         }
     }
@@ -160,8 +163,6 @@ public class CallHierarchy {
             }
         }
         call.setRequestMapping(requestMappingValue);
-
-
     }
 
     private String extractRequestMapping(NodeList<AnnotationExpr> annoList) {

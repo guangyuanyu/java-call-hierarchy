@@ -41,36 +41,37 @@ public class JavaParserConfiguration {
     }
 
     public static Set<String> getMavenDependencyJarPath(String projectPath) {
-        Set<String> dependencyJarPathSet = new HashSet<>();
-
-        boolean anyMatch = Arrays.stream(Paths.get(projectPath).toFile().listFiles()).map(File::getName).anyMatch("pom.xml"::equals);
-        if (!anyMatch) {
-            return dependencyJarPathSet;
-        }
-
-        InvocationRequest request = new DefaultInvocationRequest();
-        request.setJavaHome(new File(DefaultProperties.JAVA_HOME.getEnv()));
-        if (!ConfigProperties.MAVEN_SETTING.isEmpty()) {
-            request.setUserSettingsFile(new File(ConfigProperties.MAVEN_SETTING));
-        }
-        request.setPomFile(new File(projectPath + "/pom.xml"));
-        request.setGoals(Collections.singletonList("dependency:build-classpath"));
-
-        Invoker invoker = new DefaultInvoker();
-        invoker.setMavenHome(new File(ConfigProperties.MAVEN_HOME));
-        invoker.setInputStream(new NullInputStream(0));
-        invoker.setOutputHandler(dependencyJarPathSet::add);
-        try {
-            invoker.execute(request);
-        } catch (MavenInvocationException e) {
-            e.printStackTrace();
-        }
-
-        return dependencyJarPathSet.stream()
-                .filter(f -> !f.startsWith("["))
-                .map(m -> DefaultProperties.OS_NAME.getEnv().startsWith("Win") ? m.split(";") : m.split(":"))
-                .flatMap(Arrays::stream)
-                .collect(Collectors.toSet());
+        return Collections.emptySet();
+//        Set<String> dependencyJarPathSet = new HashSet<>();
+//
+//        boolean anyMatch = Arrays.stream(Paths.get(projectPath).toFile().listFiles()).map(File::getName).anyMatch("pom.xml"::equals);
+//        if (!anyMatch) {
+//            return dependencyJarPathSet;
+//        }
+//
+//        InvocationRequest request = new DefaultInvocationRequest();
+//        request.setJavaHome(new File(DefaultProperties.JAVA_HOME.getEnv()));
+//        if (!ConfigProperties.MAVEN_SETTING.isEmpty()) {
+//            request.setUserSettingsFile(new File(ConfigProperties.MAVEN_SETTING));
+//        }
+//        request.setPomFile(new File(projectPath + "/pom.xml"));
+//        request.setGoals(Collections.singletonList("dependency:build-classpath"));
+//
+//        Invoker invoker = new DefaultInvoker();
+//        invoker.setMavenHome(new File(ConfigProperties.MAVEN_HOME));
+//        invoker.setInputStream(new NullInputStream(0));
+//        invoker.setOutputHandler(dependencyJarPathSet::add);
+//        try {
+//            invoker.execute(request);
+//        } catch (MavenInvocationException e) {
+//            e.printStackTrace();
+//        }
+//
+//        return dependencyJarPathSet.stream()
+//                .filter(f -> !f.startsWith("["))
+//                .map(m -> DefaultProperties.OS_NAME.getEnv().startsWith("Win") ? m.split(";") : m.split(":"))
+//                .flatMap(Arrays::stream)
+//                .collect(Collectors.toSet());
     }
 
     public static TypeSolver getTypeSolver(String projectPath, Set<String> dependencySourcePathSet, Set<String> dependencyJarPathSet) throws IOException {

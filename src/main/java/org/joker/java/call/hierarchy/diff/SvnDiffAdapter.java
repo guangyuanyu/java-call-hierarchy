@@ -5,7 +5,6 @@ import org.apache.commons.io.IOUtils;
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 public class SvnDiffAdapter implements DiffAdapter {
@@ -24,56 +23,40 @@ public class SvnDiffAdapter implements DiffAdapter {
 
     private int oldFileLineNum;
 
-    private List<Long> deletedLineNums = new ArrayList<>();
+//    private List<Long> deletedLineNums = new ArrayList<>();
 
     @Override
     public List<FileDiff> toDiff(List<String> diff) {
-        Iterator<String> iter = diff.iterator();
         List<FileDiff> ret = new ArrayList<>();
+        int i = 0;
+        int size = diff.size();
         FileDiff fileDiff = null;
-        while (iter.hasNext()){
-            String line = iter.next();
+        while (i < size){
+            String line = diff.get(i);
             if (line.startsWith("Index: ")) {
-                if (deletedLineNums.size() > 0) {
-                    for (Long deletedLineNum : deletedLineNums) {
-                        LineDiff lineDiff = new LineDiff();
-                        lineDiff.lineNum = deletedLineNum.intValue();
-                        lineDiff.type = LineDiff.DiffType.DELETE;
-                        lineDiff.filename = processingFile;
-                        lineDiff.packageName = packageName;
-                        lineDiff.clazzName = className;
-                        fileDiff.diffSet.add(lineDiff);
-                    }
-                }
                 if (!line.endsWith(".java")) {
                     continue; //非java文件不处理
                 }
                 fileDiff = new FileDiff();
                 ret.add(fileDiff);
-                processingFile = line.substring(6);
+                processingFile = line.substring(7);
                 processingClass = extractProcessingFile();
                 className = extractClassName();
                 packageName = extractPackageName();
                 fileDiff.filename = processingFile;
 
                 // 跨过3行
-                iter.next(); iter.next(); iter.next();
-                line = iter.next();
+                i += 3;
+                line = diff.get(i+1);
                 if (!line.startsWith("@@")) {
                     throw new IllegalArgumentException("diff input illegal");
                 }
-                line = line.replaceAll("@@", "").trim();
-                String[] array = line.split("\\W");
-                startLine = Math.abs(Integer.parseInt(array[4].trim()));
-                oldFileLineNum = startLine;
-                newFileLineNum = startLine;
             } else if (line.startsWith("@@")) {
                 line = line.replaceAll("@@", "").trim();
                 String[] array = line.split("\\W");
                 startLine = Math.abs(Integer.parseInt(array[4].trim()));
                 oldFileLineNum = startLine;
                 newFileLineNum = startLine;
-                deletedLineNums.clear();
             } else {
                 if (line.startsWith("+")) {
                     LineDiff lineDiff = new LineDiff();
@@ -85,19 +68,33 @@ public class SvnDiffAdapter implements DiffAdapter {
                     lineDiff.clazzName = className;
 
                     fileDiff.diffSet.add(lineDiff);
-
-                    if (deletedLineNums.contains((long) newFileLineNum)) {
-                        deletedLineNums.remove(Long.valueOf(newFileLineNum));
-                    }
                     newFileLineNum++;
                 } else if (line.startsWith("-")) {
-                    deletedLineNums.add((long) oldFileLineNum);
-                    oldFileLineNum++;
+                    int tempIndex = i;
+                    String tempLine = diff.get(tempIndex);
+                    while (tempLine.startsWith("-") && tempIndex < size) {
+                        tempLine = diff.get(++tempIndex);
+                    }
+                    if ((tempIndex < size) && !tempLine.startsWith("+")
+                        || (tempIndex == size)) {
+                        for (int minusIndex = i; minusIndex < tempIndex; minusIndex++) {
+                            LineDiff lineDiff = new LineDiff();
+                            lineDiff.lineNum = oldFileLineNum++;
+                            lineDiff.type = LineDiff.DiffType.DELETE;
+                            lineDiff.filename = processingFile;
+                            lineDiff.packageName = packageName;
+                            lineDiff.clazzName = className;
+                            lineDiff.line = diff.get(minusIndex);
+                            fileDiff.diffSet.add(lineDiff);
+                        }
+                    }
+                    i = tempIndex - 1;
                 } else {
                     newFileLineNum++;
                     oldFileLineNum++;
                 }
             }
+            i++;
         }
 
         return ret;
@@ -105,7 +102,7 @@ public class SvnDiffAdapter implements DiffAdapter {
 
     private String extractProcessingFile() {
         int i = processingFile.lastIndexOf("/java/");
-        String name = processingFile.substring(i + 7);
+        String name = processingFile.substring(i + 6);
         name = name.substring(0, name.length() - 5);
         name = name.replaceAll("/", ".");
         return name;

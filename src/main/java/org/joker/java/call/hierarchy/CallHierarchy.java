@@ -113,6 +113,7 @@ public class CallHierarchy {
     }
 
     public void parseMethodRecursion(Hierarchy<ResolvedMethodDeclaration> hierarchy) throws IOException {
+        processControllerMethod(hierarchy);
         ResolvedMethodDeclaration target = hierarchy.getTarget();
         List<ResolvedMethodDeclaration> resolvedMethodDeclarations = parseMethod(target.getPackageName(), target.getClassName(), target.getName());
         if (resolvedMethodDeclarations.isEmpty()) {

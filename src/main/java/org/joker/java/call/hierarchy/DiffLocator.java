@@ -45,6 +45,15 @@ public class DiffLocator {
         public int hashCode() {
             return Objects.hashCode(packageName, className, methodName);
         }
+
+        @Override
+        public String toString() {
+            return "{" +
+                    "\"packageName\": \"" + packageName + '\"' +
+                    ", \"className\": \"" + className + '\"' +
+                    ", \"methodName\": \"" + methodName + '\"' +
+                    '}';
+        }
     }
 
     public static class FieldDesc {
@@ -59,14 +68,34 @@ public class DiffLocator {
             this.className = className;
             this.fieldName = fieldName;
         }
+
+        @Override
+        public String toString() {
+            return "{" +
+                    "\"packageName\": \"" + packageName + '\"' +
+                    ", \"className\": \"" + className + '\"' +
+                    ", \"fieldName\": \"" + fieldName + '\"' +
+                    '}';
+        }
     }
 
     public static class DiffDesc {
+        public String filename;
+
         public boolean isFieldDiff;
 
         public FieldDesc fieldDesc;
 
         public MethodDesc methodDesc;
+
+        @Override
+        public String toString() {
+            return "{" +
+                    "\"isFieldDiff\":  " + isFieldDiff +
+                    ", \"fieldDesc\": " + fieldDesc +
+                    ", \"methodDesc\": " + methodDesc +
+                    '}';
+        }
     }
 
     private CallHierarchy callHierarchy;
@@ -126,7 +155,80 @@ public class DiffLocator {
             callHierarchy.sourceRoots = callHierarchy.javaParserProxy.getSourceRoots(callHierarchy.projectRoot);
         }
 
+        boolean found = false;
         List<ResolvedMethodDeclaration> list = new ArrayList<>();
+        for (SourceRoot sourceRoot : callHierarchy.sourceRoots) {
+            if (found) {
+                break;
+            }
+            if (diffSet.size() <= 0) {
+                break;
+            }
+            List<CompilationUnit> compilationUnits = callHierarchy.compilationUnitMap.get(sourceRoot.getRoot());
+            if (compilationUnits == null) {
+                compilationUnits = callHierarchy.javaParserProxy.getCompilationUnits(sourceRoot);
+                callHierarchy.compilationUnitMap.put(sourceRoot.getRoot(), compilationUnits);
+            }
+            for (CompilationUnit compilationUnit : compilationUnits) {
+                if (found) {
+                    break;
+                }
+                if (diffSet.size() <= 0) {
+                    break;
+                }
+                boolean targetClass = false;
+                List<TypeDeclaration> typeDeclarations = compilationUnit.findAll(TypeDeclaration.class);
+                for (TypeDeclaration typeDeclaration : typeDeclarations) {
+                    Optional<String> optional = typeDeclaration.getFullyQualifiedName();
+                    if (optional.isPresent()) {
+                        String s = optional.get();
+                        if (s.equals(qualifyName)) {
+                            targetClass = true;
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+                if (!targetClass) {
+                    continue;
+                }
+                List<ResolvedMethodDeclaration> resolvedMethodDeclarations = compilationUnit.findAll(MethodDeclaration.class)
+                        .stream()
+                        .filter(f -> {
+                            Range range = f.getRange().get();
+                            int begin = range.begin.line;
+                            int end = range.end.line;
+                            Iterator<LineDiff> iter = diffSet.iterator();
+                            while (iter.hasNext()) {
+                                LineDiff line = iter.next();
+                                if (line.lineNum >= begin && line.lineNum <= end) {
+                                    iter.remove();
+                                    return true;
+                                }
+                            }
+                            return false;
+                        })
+                        .map(m -> m.resolve())
+                        .collect(Collectors.toList());
+                list.addAll(resolvedMethodDeclarations);
+            }
+        }
+        return list;
+    }
+
+    public List<ResolvedFieldDeclaration> tryLocateField(FileDiff diff) throws IOException {
+        String packageName = diff.diffSet.get(0).packageName;
+        String clazzName = diff.diffSet.get(0).clazzName;
+        String qualifyName = packageName + "." + clazzName;
+        List<LineDiff> origin = diff.diffSet;
+        List<LineDiff> diffSet = new ArrayList<>();
+        diffSet.addAll(origin);
+
+        if (callHierarchy.sourceRoots == null) {
+            callHierarchy.sourceRoots = callHierarchy.javaParserProxy.getSourceRoots(callHierarchy.projectRoot);
+        }
+
+        List<ResolvedFieldDeclaration> list = new ArrayList<>();
         for (SourceRoot sourceRoot : callHierarchy.sourceRoots) {
             if (diffSet.size() <= 0) {
                 break;
@@ -154,53 +256,6 @@ public class DiffLocator {
                 }
                 if (!targetClass) {
                     continue;
-                }
-                List<ResolvedMethodDeclaration> resolvedMethodDeclarations = compilationUnit.findAll(MethodDeclaration.class)
-                        .stream()
-                        .filter(f -> {
-                            Range range = f.getRange().get();
-                            int begin = range.begin.line;
-                            int end = range.end.line;
-                            Iterator<LineDiff> iter = diffSet.iterator();
-                            while (iter.hasNext()) {
-                                LineDiff line = iter.next();
-                                if (line.lineNum >= begin && line.lineNum <= end) {
-                                    iter.remove();
-                                    return true;
-                                }
-                            }
-                            return false;
-                        })
-                        .map(m -> JavaParseUtil.getParentNode(m, MethodDeclaration.class).resolve())
-                        .collect(Collectors.toList());
-                list.addAll(resolvedMethodDeclarations);
-            }
-        }
-        return list;
-    }
-
-    public List<ResolvedFieldDeclaration> tryLocateField(FileDiff diff) throws IOException {
-        List<LineDiff> origin = diff.diffSet;
-        List<LineDiff> diffSet = new ArrayList<>();
-        diffSet.addAll(origin);
-
-        if (callHierarchy.sourceRoots == null) {
-            callHierarchy.sourceRoots = callHierarchy.javaParserProxy.getSourceRoots(callHierarchy.projectRoot);
-        }
-
-        List<ResolvedFieldDeclaration> list = new ArrayList<>();
-        for (SourceRoot sourceRoot : callHierarchy.sourceRoots) {
-            if (diffSet.size() <= 0) {
-                break;
-            }
-            List<CompilationUnit> compilationUnits = callHierarchy.compilationUnitMap.get(sourceRoot.getRoot());
-            if (compilationUnits == null) {
-                compilationUnits = callHierarchy.javaParserProxy.getCompilationUnits(sourceRoot);
-                callHierarchy.compilationUnitMap.put(sourceRoot.getRoot(), compilationUnits);
-            }
-            for (CompilationUnit compilationUnit : compilationUnits) {
-                if (diffSet.size() <= 0) {
-                    break;
                 }
                 List<ResolvedFieldDeclaration> resolvedMethodDeclarations = compilationUnit.findAll(FieldDeclaration.class)
                         .stream()

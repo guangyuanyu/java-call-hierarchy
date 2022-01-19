@@ -69,6 +69,15 @@ public class Hierarchy<T> {
     public List<String> toStringList() {
         Function<T, String> function = getFunction();
         String prefix = function.apply(target);
+        if (calls.isEmpty()) {
+            if (this.getRequestMapping() != null && !this.getRequestMapping().equals("")) {
+                String requestMapping = this.getRequestMapping();
+                prefix = prefix + "(url: " + requestMapping + ")";
+            }
+            if (this.getComment() != null && !this.getComment().equals("")) {
+                prefix = prefix + "【" + this.getComment() + "】";
+            }
+        }
         return toStringList(prefix, calls, function);
     }
 

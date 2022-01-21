@@ -80,7 +80,7 @@ public class DiffLocator {
     }
 
     public static class DiffDesc {
-        public String filename;
+        public String module;
 
         public boolean isFieldDiff;
 
@@ -91,6 +91,7 @@ public class DiffLocator {
         @Override
         public String toString() {
             return "{" +
+                    "\"module\":  " + module +
                     "\"isFieldDiff\":  " + isFieldDiff +
                     ", \"fieldDesc\": " + fieldDesc +
                     ", \"methodDesc\": " + methodDesc +
@@ -113,6 +114,7 @@ public class DiffLocator {
             List<ResolvedMethodDeclaration> resolvedMethodDeclarations = tryLocateMethod(diff);
             Set<DiffDesc> methodDiffs = resolvedMethodDeclarations.stream().map(r -> {
                 DiffDesc diffDesc = new DiffDesc();
+                diffDesc.module = diff.getModule();
                 diffDesc.isFieldDiff = false;
                 diffDesc.methodDesc = new MethodDesc(r.getPackageName(), r.getClassName(), r.getName());
                 return diffDesc;
@@ -129,6 +131,7 @@ public class DiffLocator {
             List<ResolvedFieldDeclaration> resolvedFieldDeclarations = tryLocateField(diff);
             Set<DiffDesc> methodDiffs = resolvedFieldDeclarations.stream().map(r -> {
                 DiffDesc diffDesc = new DiffDesc();
+                diffDesc.module = diff.getModule();
                 diffDesc.isFieldDiff = true;
                 diffDesc.fieldDesc = new FieldDesc(diff.diffSet.get(0).packageName, diff.diffSet.get(0).clazzName
                         , r.getName());

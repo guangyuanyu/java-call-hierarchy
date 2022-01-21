@@ -26,9 +26,9 @@ public class FieldAccessHierarchy {
         this.callHierarchy = callHierarchy;
     }
 
-    public void printFieldAccessRecursion(String packageName, String javaName, String fieldName) throws IOException {
+    public void printFieldAccessRecursion(String module, String packageName, String javaName, String fieldName) throws IOException {
         System.out.println("------ start print field access recursion ------");
-        parseFieldAccessRecursion(packageName, javaName, fieldName)
+        parseFieldAccessRecursion(module, packageName, javaName, fieldName)
                 .stream()
                 .map(Hierarchy::toStringList)
                 .flatMap(Collection::stream)
@@ -38,9 +38,9 @@ public class FieldAccessHierarchy {
         System.out.println("------  end print field access recursion  ------");
     }
 
-    public void printControllerMethod(String packageName, String javaName, String fieldName) throws IOException {
+    public void printControllerMethod(String module, String packageName, String javaName, String fieldName) throws IOException {
         System.out.println("------ start print field access recursion ------");
-        parseFieldAccessRecursion(packageName, javaName, fieldName)
+        parseFieldAccessRecursion(module, packageName, javaName, fieldName)
                 .stream()
                 .map(Hierarchy::toStringList)
                 .flatMap(Collection::stream)
@@ -50,28 +50,31 @@ public class FieldAccessHierarchy {
         System.out.println("------  end print field access recursion  ------");
     }
 
-    public List<Hierarchy<ResolvedMethodDeclaration>> parseFieldAccessRecursion(String packageName, String javaName, String fieldName) throws IOException {
-        List<ResolvedMethodDeclaration> resolvedMethodDeclarations = parseField(packageName, javaName, fieldName);
+    public List<Hierarchy<ResolvedMethodDeclaration>> parseFieldAccessRecursion(String module, String packageName, String javaName, String fieldName) throws IOException {
+        List<ResolvedMethodDeclaration> resolvedMethodDeclarations = parseField(module, packageName, javaName, fieldName);
         if (resolvedMethodDeclarations.isEmpty()) {
             return Collections.emptyList();
         }
 
         List<Hierarchy<ResolvedMethodDeclaration>> hierarchies = resolvedMethodDeclarations.stream().map(Hierarchy::new).collect(Collectors.toList());
         for (Hierarchy<ResolvedMethodDeclaration> hierarchy : hierarchies) {
-            callHierarchy.parseMethodRecursion(hierarchy);
+            callHierarchy.parseMethodRecursion(module, hierarchy);
         }
 
         return hierarchies;
     }
 
-    public List<ResolvedMethodDeclaration> parseField(String packageName, String javaName, String fieldName) throws IOException {
+    public List<ResolvedMethodDeclaration> parseField(String module, String packageName, String javaName, String fieldName) throws IOException {
         List<ResolvedMethodDeclaration> list = new ArrayList<>();
         String classQualifiedName = String.format("%s.%s", packageName, javaName);
-        String fieldQualifiedName = String.format("%s.%s.%s", packageName, javaName, fieldName);
         if (this.callHierarchy.sourceRoots == null) {
             this.callHierarchy.sourceRoots = this.callHierarchy.javaParserProxy.getSourceRoots(this.callHierarchy.projectRoot);
         }
         for (SourceRoot sourceRoot : this.callHierarchy.sourceRoots) {
+            if (!sourceRoot.getRoot().toAbsolutePath().toString().contains(module)
+                && !module.contains("common") && !module.contains("baseModule")) {
+                continue;
+            }
             SymbolResolver symbolResolver = sourceRoot.getParserConfiguration().getSymbolResolver().get();
             List<CompilationUnit> compilationUnits = this.callHierarchy.compilationUnitMap.get(sourceRoot.getRoot());
             if (compilationUnits == null) {

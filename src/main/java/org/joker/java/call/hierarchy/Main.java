@@ -42,7 +42,7 @@ public class Main {
             String javaName = "GateControlUtil";
             String method = "getGateCategory";
 
-            callHierarchy.printParseMethodRecursion(packageName, javaName, method);
+            callHierarchy.printParseMethodRecursion("gmCrm", packageName, javaName, method);
     }
 
     private static void parseFieldAccess() throws IOException {
@@ -65,7 +65,7 @@ public class Main {
         String javaName = "GAPConstant";
         String field = "BUSITYPE_DOUBLE_RECORD";
 
-        fieldAccessHierarchy.printFieldAccessRecursion(packageName, javaName, field);
+        fieldAccessHierarchy.printFieldAccessRecursion("gmCrm", packageName, javaName, field);
     }
 
     private static void init() {
@@ -223,11 +223,11 @@ public class Main {
         for (DiffLocator.DiffDesc diffDesc : diffDescs) {
             if (diffDesc.isFieldDiff) {
                 System.out.println("==================Field: " + diffDesc.fieldDesc.packageName + "." + diffDesc.fieldDesc.className + ":" + diffDesc.fieldDesc.fieldName + "========================");
-                fieldAccessHierarchy.parseFieldAccessRecursion(diffDesc.fieldDesc.packageName,
+                fieldAccessHierarchy.parseFieldAccessRecursion(diffDesc.module, diffDesc.fieldDesc.packageName,
                         diffDesc.fieldDesc.className, diffDesc.fieldDesc.fieldName);
             } else {
                 System.out.println("==================Method: " + diffDesc.methodDesc.packageName + "." + diffDesc.methodDesc.className + ":" + diffDesc.methodDesc.methodName + "========================");
-                callHierarchy.printParseMethodRecursion(diffDesc.methodDesc.packageName,
+                callHierarchy.printParseMethodRecursion(diffDesc.module, diffDesc.methodDesc.packageName,
                         diffDesc.methodDesc.className, diffDesc.methodDesc.methodName);
             }
         }

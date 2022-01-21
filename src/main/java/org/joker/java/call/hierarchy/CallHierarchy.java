@@ -40,7 +40,7 @@ public class CallHierarchy {
         projectRoot = new SymbolSolverCollectionStrategy(parserConfiguration).collect(Paths.get(config.getProjectPath()));
     }
 
-    public List<ResolvedMethodDeclaration> parseMethod(String packageName, String javaName, String methodName) throws IOException {
+    public List<ResolvedMethodDeclaration> parseMethod(String module, String packageName, String javaName, String methodName) throws IOException {
         List<ResolvedMethodDeclaration> list = new ArrayList<>();
         String classQualifiedName = String.format("%s.%s", packageName, javaName);
         String methodQualifiedName = String.format("%s.%s.%s", packageName, javaName, methodName);
@@ -48,6 +48,11 @@ public class CallHierarchy {
             sourceRoots = javaParserProxy.getSourceRoots(projectRoot);
         }
         for (SourceRoot sourceRoot : sourceRoots) {
+            if (!sourceRoot.getRoot().toAbsolutePath().toString().contains(module)
+                    && !module.contains("common") && !module.contains("baseModule")) {
+                continue;
+            }
+
             SymbolResolver symbolResolver = sourceRoot.getParserConfiguration().getSymbolResolver().get();
             List<CompilationUnit> compilationUnits = compilationUnitMap.get(sourceRoot.getRoot());
             if (compilationUnits == null) {
@@ -89,33 +94,33 @@ public class CallHierarchy {
         return list;
     }
 
-    public void printParseMethod(String packageName, String javaName, String methodName) throws IOException {
+    public void printParseMethod(String module, String packageName, String javaName, String methodName) throws IOException {
         System.out.println("------ start print method call ------");
-        parseMethod(packageName, javaName, methodName)
+        parseMethod(module, packageName, javaName, methodName)
                 .stream()
                 .map(ResolvedMethodDeclaration::getQualifiedSignature)
                 .forEach(System.out::println);
         System.out.println("------  end print method call  ------");
     }
 
-    public List<Hierarchy<ResolvedMethodDeclaration>> parseMethodRecursion(String packageName, String javaName, String methodName) throws IOException {
-        List<ResolvedMethodDeclaration> resolvedMethodDeclarations = parseMethod(packageName, javaName, methodName);
+    public List<Hierarchy<ResolvedMethodDeclaration>> parseMethodRecursion(String module, String packageName, String javaName, String methodName) throws IOException {
+        List<ResolvedMethodDeclaration> resolvedMethodDeclarations = parseMethod(module, packageName, javaName, methodName);
         if (resolvedMethodDeclarations.isEmpty()) {
             return Collections.emptyList();
         }
 
         List<Hierarchy<ResolvedMethodDeclaration>> hierarchies = resolvedMethodDeclarations.stream().map(Hierarchy::new).collect(Collectors.toList());
         for (Hierarchy<ResolvedMethodDeclaration> hierarchy : hierarchies) {
-            parseMethodRecursion(hierarchy);
+            parseMethodRecursion(module, hierarchy);
         }
 
         return hierarchies;
     }
 
-    public void parseMethodRecursion(Hierarchy<ResolvedMethodDeclaration> hierarchy) throws IOException {
+    public void parseMethodRecursion(String module, Hierarchy<ResolvedMethodDeclaration> hierarchy) throws IOException {
         processControllerMethod(hierarchy);
         ResolvedMethodDeclaration target = hierarchy.getTarget();
-        List<ResolvedMethodDeclaration> resolvedMethodDeclarations = parseMethod(target.getPackageName(), target.getClassName(), target.getName());
+        List<ResolvedMethodDeclaration> resolvedMethodDeclarations = parseMethod(module, target.getPackageName(), target.getClassName(), target.getName());
         if (resolvedMethodDeclarations.isEmpty()) {
             return;
         }
@@ -128,7 +133,7 @@ public class CallHierarchy {
             if (hierarchy.getRequestMapping() != null && !hierarchy.getRequestMapping().equals("")) {
                 continue;
             }
-            parseMethodRecursion(call);
+            parseMethodRecursion(module, call);
         }
     }
 
@@ -188,9 +193,9 @@ public class CallHierarchy {
         return value;
     }
 
-    public void printParseMethodRecursion(String packageName, String javaName, String methodName) throws IOException {
+    public void printParseMethodRecursion(String module, String packageName, String javaName, String methodName) throws IOException {
         System.out.println("------ start print method call recursion ------");
-        parseMethodRecursion(packageName, javaName, methodName)
+        parseMethodRecursion(module, packageName, javaName, methodName)
                 .stream()
                 .map(Hierarchy::toStringList)
                 .flatMap(Collection::stream)

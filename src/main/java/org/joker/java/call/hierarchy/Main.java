@@ -70,7 +70,7 @@ public class Main {
 
     private static void init() {
         Config config = new Config();
-        config.setProjectPath("/Users/yuguangyuan/code/csc/eagle-parent/zxjt-gmCrm");
+        config.setProjectPath("/Users/yuguangyuan/code/csc/eagle-parent/zxjt-smjj");
         try {
             callHierarchy = new CallHierarchy(config);
         } catch (IOException e) {
@@ -81,129 +81,315 @@ public class Main {
     private static CallHierarchy callHierarchy;
 
     private static List<DiffLocator.DiffDesc> locateSvnDiff() throws IOException {
-        String s = "Index: src/main/java/com/linkstec/raptor/eagle/frap/service/KidmService.java\n" +
+        String s = "Index: zxjt-smjj/src/main/java/com/linkstec/raptor/eagle/frap/service/OtcFundService.java\n" +
                 "===================================================================\n" +
-                "--- src/main/java/com/linkstec/raptor/eagle/frap/service/KidmService.java\t(版本 347384)\n" +
-                "+++ src/main/java/com/linkstec/raptor/eagle/frap/service/KidmService.java\t(版本 345922)\n" +
-                "@@ -1217,8 +1217,8 @@\n" +
+                "--- zxjt-smjj/src/main/java/com/linkstec/raptor/eagle/frap/service/OtcFundService.java\t(版本 348988)\n" +
+                "+++ zxjt-smjj/src/main/java/com/linkstec/raptor/eagle/frap/service/OtcFundService.java\t(版本 348960)\n" +
+                "@@ -111,10 +111,6 @@\n" +
                 "\n" +
-                "         try {\n" +
-                "             if (StringUtils.isNotBlank(ELE_SECRET_KEY)) {\n" +
-                "-                String secretKey = ELE_SECRET_KEY.replace(\"{0}\", sdf.get().format(System.currentTimeMillis()));\n" +
-                "-                DES secDes = new DES(secretKey);\n" +
-                "+                ELE_SECRET_KEY = ELE_SECRET_KEY.replace(\"{0}\", sdf.get().format(System.currentTimeMillis()));\n" +
-                "+                DES secDes = new DES(ELE_SECRET_KEY);\n" +
-                "                 inModel.setPhoneNumber(secDes.decryptByMobile(inModel.getPhoneNumber()));    // 手机号按规则解密\n" +
-                "             }\n" +
-                "\n" +
-                "@@ -1551,8 +1551,8 @@\n" +
-                "\n" +
-                "         try {\n" +
-                "             if (StringUtils.isNotBlank(ELE_SECRET_KEY)) {\n" +
-                "-                String secretKey = ELE_SECRET_KEY.replace(\"{0}\", sdf.get().format(System.currentTimeMillis()));\n" +
-                "-                DES secDes = new DES(secretKey);\n" +
-                "+                ELE_SECRET_KEY = ELE_SECRET_KEY.replace(\"{0}\", sdf.get().format(System.currentTimeMillis()));\n" +
-                "+                DES secDes = new DES(ELE_SECRET_KEY);\n" +
-                "                 inModel.setPhoneNumber(secDes.decryptByMobile(inModel.getPhoneNumber()));    // 手机号按规则解密\n" +
-                "             }\n" +
-                "             // 业务办理\n" +
-                "Index: src/main/java/com/linkstec/raptor/eagle/frap/service/LDSFOnlineHall3rdService.java\n" +
+                "         // 产品名称\n" +
+                "         retMap.put(\"ofName\", fundMap.get(\"inst_fname\"));\n" +
+                "-// update 20220125 by LKG 【需求】私募产品单向保存产品信息，单向话术用简称，不是全称  --start\n" +
+                "-        // 产品简称 新增\n" +
+                "-        retMap.put(\"ofShortName\", fundMap.get(\"productname\"));\n" +
+                "-//update 20220125 by LKG 【需求】私募产品单向保存产品信息，单向话术用简称，不是全称  --end\n" +
+                "         // 产品编码\n" +
+                "         retMap.put(\"productId\", fundMap.get(\"productid\"));\n" +
+                "         // 发行人代码\n" +
+                "Index: zxjt-smjj/src/main/java/com/linkstec/raptor/eagle/frap/service/LDSFOnlineHall3rdService.java\n" +
                 "===================================================================\n" +
-                "--- src/main/java/com/linkstec/raptor/eagle/frap/service/LDSFOnlineHall3rdService.java\t(版本 347384)\n" +
-                "+++ src/main/java/com/linkstec/raptor/eagle/frap/service/LDSFOnlineHall3rdService.java\t(版本 345922)\n" +
-                "@@ -44,9 +44,9 @@\n" +
+                "--- zxjt-smjj/src/main/java/com/linkstec/raptor/eagle/frap/service/LDSFOnlineHall3rdService.java\t(版本 348988)\n" +
+                "+++ zxjt-smjj/src/main/java/com/linkstec/raptor/eagle/frap/service/LDSFOnlineHall3rdService.java\t(版本 348960)\n" +
+                "@@ -44,12 +44,9 @@\n" +
                 "         String retPwd = pwd;\n" +
                 "         if (StringUtils.isNotBlank(retPwd)) {\n" +
                 "             if (StringUtils.isNotBlank(ELE_SECRET_KEY)) {\n" +
+                "-// update 20220113 by LKG 手机号加密【秘钥问题修复】 ---start\n" +
                 "-                String secretKey = ELE_SECRET_KEY.replace(\"{0}\", EagleCommonUtil.getNextDay(EagleConstant.NUMBER_0));\n" +
                 "+                ELE_SECRET_KEY = ELE_SECRET_KEY.replace(\"{0}\", EagleCommonUtil.getNextDay(EagleConstant.NUMBER_0));\n" +
                 "                 try {\n" +
+                "-                    // 秘钥只取前8位\n" +
                 "-                    DES secDes = new DES(secretKey);\n" +
+                "-// update 20220113 by LKG 手机号加密【秘钥问题修复】 ---end\n" +
                 "+                    DES secDes = new DES(ELE_SECRET_KEY);\n" +
                 "                     retPwd = secDes.decrypt(pwd);\n" +
                 "                 } catch (Exception e) {\n" +
                 "                     ;    // nothing do it\n" +
-                "Index: src/main/java/com/linkstec/raptor/eagle/frap/service/PortfolioService.java\n" +
+                "Index: zxjt-smjj/src/main/java/com/linkstec/raptor/eagle/frap/service/KidmService.java\n" +
                 "===================================================================\n" +
-                "--- src/main/java/com/linkstec/raptor/eagle/frap/service/PortfolioService.java\t(版本 347384)\n" +
-                "+++ src/main/java/com/linkstec/raptor/eagle/frap/service/PortfolioService.java\t(版本 345922)\n" +
-                "@@ -195,22 +195,25 @@\n" +
-                "      */\n" +
-                "     // @Cacheable(value=\"userCache\", key=\"#inModel.id\")\n" +
-                "     public Map<String, Object> portfolioDetail(ZhxqModel inModel, Map<String, String> userMap,HttpServletRequest request) throws Exception {\n" +
-                "-        // 根据组合编码获取组合产品详情\n" +
-                "-        return getPortfolioDetail(inModel, userMap, request);\n" +
-                "+// update 20211214 by LKG 【需求-2021-1467】基金投顾增加周报、UI优化等需求 ---start\n" +
-                "+        // 根据组合编码获取组合产品详情数据，返回数据不处理\n" +
-                "+        return getPortfolioDetailData(inModel, userMap, request);\n" +
-                "+// update 20211214 by LKG 【需求-2021-1467】基金投顾增加周报、UI优化等需求 ---end\n" +
-                "     }\n" +
-                "\n" +
-                "     /**\n" +
-                "-     * 根据组合编码获取组合产品详情\n" +
-                "-     * @param inModel 入参\n" +
-                "-     * @param userMap 用户情报\n" +
-                "-     * @param request 请求\n" +
-                "-     * @return Map<String, Object>\n" +
-                "-     * @throws Exception 异常\n" +
-                "+     * 根据组合编码获取组合产品详情数据\n" +
-                "+     * @param inModel\n" +
-                "+     * @param userMap\n" +
-                "+     * @param request\n" +
-                "+     * @return\n" +
-                "+     * @throws Exception\n" +
-                "      */\n" +
-                "     @SuppressWarnings(\"unchecked\")\n" +
-                "-    private Map<String, Object> getPortfolioDetail(ZhxqModel inModel, Map<String, String> userMap, HttpServletRequest request) throws Exception {\n" +
-                "-        // 返回结果集\n" +
-                "-        Map<String, Object> retMap = new HashMap<String ,Object>();\n" +
-                "+    public Map<String,Object> getPortfolioDetailData(ZhxqModel inModel, Map<String, String> userMap, HttpServletRequest request) throws Exception{\n" +
-                "+        // 返回数据\n" +
-                "+        Map<String, Object> retMap = new HashMap<>();\n" +
-                "+\n" +
-                "         // 公共参数-致胜\n" +
-                "         Map<String, String> params = GateControlUtil.setFinanceCommonParams(userMap, request);\n" +
-                "         // 组合编码\n" +
-                "@@ -227,13 +230,28 @@\n" +
-                "                 throw e;\n" +
+                "--- zxjt-smjj/src/main/java/com/linkstec/raptor/eagle/frap/service/KidmService.java\t(版本 348988)\n" +
+                "+++ zxjt-smjj/src/main/java/com/linkstec/raptor/eagle/frap/service/KidmService.java\t(版本 348960)\n" +
+                "@@ -231,11 +231,8 @@\n" +
+                "                     !(phone.length() == EagleConstant.NUMBER_11 && isNumeric(phone))\n" +
+                "                     && StringUtils.isNotBlank(secretKey)) {\n" +
+                "                 try {\n" +
+                "-// update 20220113 by LKG 手机号加密【秘钥问题修复】 ---start\n" +
+                "                     String key = secretKey.replace(\"{0}\", sdf.get().format(System.currentTimeMillis()));\n" +
+                "-                    // 秘钥只取前8位\n" +
+                "                     DES des = new DES(key);\n" +
+                "-// update 20220113 by LKG 手机号加密【秘钥问题修复】 ---end\n" +
+                "                     phone = des.decrypt(phone);\n" +
+                "                 } catch (Exception e) {\n" +
+                "                     GLog.error(\"fundId: {}, call AP interface id: {}, svrId: {}, error={}\", EagleSessionInfoManager.getClinetFundZTFundId(), request.getRequestURI(), \"KidmService#getRemark phone DES decrypt phone = \" + phone, EagleCommonUtil.getException(e));\n" +
+                "@@ -362,11 +359,8 @@\n" +
+                "                             !(phone.length() == EagleConstant.NUMBER_11 && isNumeric(phone))\n" +
+                "                             && StringUtils.isNotBlank(secretKey)) {\n" +
+                "                         try {\n" +
+                "-// update 20220113 by LKG 手机号加密【秘钥问题修复】 ---start\n" +
+                "                             String key = secretKey.replace(\"{0}\", sdf.get().format(System.currentTimeMillis()));\n" +
+                "-                            // 秘钥只取前8位\n" +
+                "                             DES des = new DES(key);\n" +
+                "-// update 20220113 by LKG 手机号加密【秘钥问题修复】 ---end\n" +
+                "                             phone = des.decrypt(phone);\n" +
+                "                         } catch (Exception e) {\n" +
+                "                             GLog.error(\"fundId: {}, call AP interface id: {}, svrId: {}, error={}\", EagleSessionInfoManager.getClinetFundZTFundId(), request.getRequestURI(), \"KidmService#getRemark phone DES decrypt phone = \" + phone, EagleCommonUtil.getException(e));\n" +
+                "@@ -1253,14 +1247,12 @@\n" +
+                "             String errorCode = e.getErrors().get(EagleConstant.NUMBER_0).getCode();\n" +
+                "             String errorMsg = e.getErrors().get(EagleConstant.NUMBER_0).getMessage();\n" +
+                "             GLog.error(\"fundId: {}, call AP interface id：{}, svrId: {}, error: {}\", userMap.get(\"fundid\"), request.getRequestURI(), \"KidmService#getCaSign\", errorCode + EagleConstant.SPACE + errorMsg);\n" +
+                "-            retMap.put(\"flag\", EagleConstant.STR_0);\n" +
+                "-            // 校验手机验证码失败，flag返回2\n" +
+                "             if (StringUtils.equals(EagleConstant.ERROR_CODE_I0001, errorCode)) {\n" +
+                "                 retMap.put(\"errMsg\", errorMsg);\n" +
+                "-                retMap.put(\"flag\", EagleConstant.STR_2); // ca校验失败\n" +
+                "             } else {\n" +
+                "                 retMap.put(\"errMsg\", errorCode + EagleConstant.SPACE + errorMsg);\n" +
                 "             }\n" +
-                "         }\n" +
-                "-        Map<String, Object> baseDataMap = new HashMap<>();\n" +
-                "         if (null != retObj) {\n" +
-                "             DataLst dataObj = (DataLst) retObj.get(\"resLst\");\n" +
-                "             if (null != dataObj) {\n" +
-                "-                baseDataMap = dataObj.getBaseData();\n" +
-                "+                retMap = dataObj.getBaseData();\n" +
-                "             }\n" +
-                "         }\n" +
-                "+        return retMap;\n" +
-                "+    }\n" +
+                "+            retMap.put(\"flag\", EagleConstant.STR_0);\n" +
+                "         } catch (Exception e) {\n" +
+                "             GLog.error(\"fundId: {}, call AP interface id：{}, svrId: {}, error: {}\", userMap.get(\"fundid\"), request.getRequestURI(), \"KidmService#getCaSign\", e);\n" +
+                "             retMap.put(\"errMsg\", EagleConstant.ERROR_CODE_E0001 + EagleConstant.SPACE + \"预想外错误发生，CA签约失败！\");\n" +
+                "Index: zxjt-smjj/src/main/resources/readme/Readme.md\n" +
+                "===================================================================\n" +
+                "--- zxjt-smjj/src/main/resources/readme/Readme.md\t(版本 348988)\n" +
+                "+++ zxjt-smjj/src/main/resources/readme/Readme.md\t(版本 348960)\n" +
+                "@@ -1,14 +1,3 @@\n" +
+                "-时间：20220126\n" +
+                "-部署版本记录：V.1.2.2.RELEASE\n" +
+                "-改修内容：\n" +
+                "-私募基金V3.9.0\n" +
+                "-1、【需求】私募产品单向保存产品信息，单向话术用简称，不是全称\n" +
+                "-2、【需求】私募双录默认展示人工和单向入口\n" +
+                "-3、redis验密改造\n" +
+                "-4、手机号加密【秘钥问题修复】\n" +
+                "-5、【技术优化】致胜调用增加apikey\n" +
+                "-6、私募基金 - 电子签约 - 兼容性优化\n" +
+                "-\n" +
+                " 时间：20211210\n" +
+                " 部署版本记录：V.1.2.1.RELEASE\n" +
+                " 改修内容：\n" +
+                "Index: zxjt-smjj/src/main/resources/smjj.properties\n" +
+                "===================================================================\n" +
+                "--- zxjt-smjj/src/main/resources/smjj.properties\t(版本 348988)\n" +
+                "+++ zxjt-smjj/src/main/resources/smjj.properties\t(版本 348960)\n" +
+                "@@ -36,8 +36,7 @@\n" +
+                " # Redis\\u670d\\u52a1\\u5668\\u5730\\u5740\n" +
+                " redisUser.server = 192.168.9.57:6379\n" +
+                " #redisUser.server = usermaster,192.168.9.25:26379,192.168.9.26:26380,192.168.9.26:26381\n" +
+                "-# redis\\u9A8C\\u5BC6\\u6539\\u9020,\\u589E\\u52A0\\u5BC6\\u7801,\\u9ED8\\u8BA4\\u4E3A\\u7A7A\n" +
+                "-redisUser.passWord =\n" +
                 "+\n" +
-                "+    /**\n" +
-                "+     * 根据组合编码获取组合产品详情\n" +
-                "+     * @param inModel 入参\n" +
-                "+     * @param userMap 用户情报\n" +
-                "+     * @param request 请求\n" +
-                "+     * @return Map<String, Object>\n" +
-                "+     * @throws Exception 异常\n" +
-                "+     */\n" +
-                "+    @SuppressWarnings(\"unchecked\")\n" +
-                "+    private Map<String, Object> getPortfolioDetail(ZhxqModel inModel, Map<String, String> userMap, HttpServletRequest request) throws Exception {\n" +
-                "+        // 返回结果集\n" +
-                "+        Map<String, Object> retMap = new HashMap<String ,Object>();\n" +
-                "+        Map<String, Object> baseDataMap = this.getPortfolioDetailData(inModel, userMap, request);\n" +
-                "         if (baseDataMap != null) {\n" +
-                "             // 资产配置\n" +
-                "             List<Map<String, String>>  assetsAllocationList = (List<Map<String, String>>) baseDataMap.get(\"assetsAllocation\");\n" +
-                "@@ -1063,7 +1081,7 @@\n" +
-                "             retMap.put(\"errmsg\", \"用户偏好保存失败！\");\n" +
-                "             // 记录错误日志\n" +
-                "             GLog.error(\"fundId: {}, AP interface id: {}, error: {}\", EagleSessionInfoManager.getClinetFundZTFundId(), request.getRequestURI(), EagleCommonUtil.getException(e));\n" +
-                "-            }\n" +
-                "+        }\n" +
+                " # Redis\\u8fde\\u63a5\\u6570\\u914d\\u7f6e\\uff08\\u524d\\u7aef\\uff09\n" +
+                " frontap.redisUser.maxIdle = 5\n" +
+                " frontap.redisUser.minIdle = 5\n" +
+                "@@ -156,7 +155,4 @@\n" +
+                " eagle.sensors.eventTracking.server = https://track-test.csc.com.cn:4443/sa?project=default\n" +
                 "\n" +
-                "         // 返回结果\n" +
-                "         return retMap;";
+                " #\\u4ea4\\u6613\\u65f6\\u95f4\n" +
+                "-eagle.smjj.trade.time=09:00-16:00\n" +
+                "-\n" +
+                "-#\\u7f51\\u5385\\u7cfb\\u7edf\\uff1a\\u81f4\\u80dc\\u8c03\\u7528\\u589e\\u52a0apikey\n" +
+                "-eagle.system.inner.apikey = csc-ecomm-web-inner-test\n" +
+                "\\ No newline at end of file\n" +
+                "+eagle.smjj.trade.time=09:00-16:00\n" +
+                "\\ No newline at end of file\n" +
+                "Index: zxjt-smjj/src/main/resources/application-context.xml\n" +
+                "===================================================================\n" +
+                "--- zxjt-smjj/src/main/resources/application-context.xml\t(版本 348988)\n" +
+                "+++ zxjt-smjj/src/main/resources/application-context.xml\t(版本 348960)\n" +
+                "@@ -84,7 +84,6 @@\n" +
+                "                 <prop key=\"sessionTimeout\">${eagle.session.timeout:7200}</prop>\n" +
+                "                 <!-- 券商标识 -->\n" +
+                "                 <prop key=\"eagle.system.mark\">${eagle.system.mark:zxjt}</prop>\n" +
+                "-                <prop key=\"eagle.subSystem.mark\">${eagle.subSystem.mark:smjj}</prop>\n" +
+                "                 <!-- 中信建投电商平台交易秘钥 -->\n" +
+                "                 <prop key=\"eagle.ldsf.secret.key\">${eagle.ldsf.secret.key:lmspABCDE12345}</prop>\n" +
+                "                 <!-- 中投手机短信验证码接口参数 -->\n" +
+                "@@ -132,8 +131,6 @@\n" +
+                "     </bean>\n" +
+                "     <bean id=\"jedisPoolUser\" class=\"com.linkstec.raptor.eagle.common.config.SpringJedisPoolFactoryBean\">\n" +
+                "         <property name=\"server\" value=\"${redisUser.server:192.168.9.61:6379}\" />\n" +
+                "-        <!-- redis验密改造,增加密码,默认为空 -->\n" +
+                "-        <property name=\"password\" value=\"${redisUser.passWord:}\" />\n" +
+                "         <property name=\"poolConfig\" ref=\"jedisPoolUserConfig\" />\n" +
+                "     </bean>\n" +
+                "     <bean id=\"jedisResourceUser\" class=\"com.linkstec.raptor.eagle.common.ds.internal.JedisPoolResource\">\n" +
+                "(base) yuguangyuan@yuguangyuandeMacBook-Pro [15时43分20秒] [~/code/csc/eagle-parent]\n" +
+                "-> %\n" +
+                "(base) yuguangyuan@yuguangyuandeMacBook-Pro [15时43分28秒] [~/code/csc/eagle-parent]\n" +
+                "-> %\n" +
+                "(base) yuguangyuan@yuguangyuandeMacBook-Pro [15时43分28秒] [~/code/csc/eagle-parent]\n" +
+                "-> %\n" +
+                "(base) yuguangyuan@yuguangyuandeMacBook-Pro [15时43分28秒] [~/code/csc/eagle-parent]\n" +
+                "-> %\n" +
+                "(base) yuguangyuan@yuguangyuandeMacBook-Pro [15时43分28秒] [~/code/csc/eagle-parent]\n" +
+                "-> %\n" +
+                "(base) yuguangyuan@yuguangyuandeMacBook-Pro [15时43分28秒] [~/code/csc/eagle-parent]\n" +
+                "-> %\n" +
+                "(base) yuguangyuan@yuguangyuandeMacBook-Pro [15时43分28秒] [~/code/csc/eagle-parent]\n" +
+                "-> %\n" +
+                "(base) yuguangyuan@yuguangyuandeMacBook-Pro [15时43分28秒] [~/code/csc/eagle-parent]\n" +
+                "-> %\n" +
+                "(base) yuguangyuan@yuguangyuandeMacBook-Pro [15时43分29秒] [~/code/csc/eagle-parent]\n" +
+                "-> %\n" +
+                "(base) yuguangyuan@yuguangyuandeMacBook-Pro [15时43分29秒] [~/code/csc/eagle-parent]\n" +
+                "-> %\n" +
+                "(base) yuguangyuan@yuguangyuandeMacBook-Pro [15时43分29秒] [~/code/csc/eagle-parent]\n" +
+                "-> %\n" +
+                "(base) yuguangyuan@yuguangyuandeMacBook-Pro [15时43分29秒] [~/code/csc/eagle-parent]\n" +
+                "-> % svn diff -r 348988:348960\n" +
+                "Index: zxjt-smjj/src/main/java/com/linkstec/raptor/eagle/frap/service/KidmService.java\n" +
+                "===================================================================\n" +
+                "--- zxjt-smjj/src/main/java/com/linkstec/raptor/eagle/frap/service/KidmService.java\t(版本 348988)\n" +
+                "+++ zxjt-smjj/src/main/java/com/linkstec/raptor/eagle/frap/service/KidmService.java\t(版本 348960)\n" +
+                "@@ -231,11 +231,8 @@\n" +
+                "                     !(phone.length() == EagleConstant.NUMBER_11 && isNumeric(phone))\n" +
+                "                     && StringUtils.isNotBlank(secretKey)) {\n" +
+                "                 try {\n" +
+                "-// update 20220113 by LKG 手机号加密【秘钥问题修复】 ---start\n" +
+                "                     String key = secretKey.replace(\"{0}\", sdf.get().format(System.currentTimeMillis()));\n" +
+                "-                    // 秘钥只取前8位\n" +
+                "                     DES des = new DES(key);\n" +
+                "-// update 20220113 by LKG 手机号加密【秘钥问题修复】 ---end\n" +
+                "                     phone = des.decrypt(phone);\n" +
+                "                 } catch (Exception e) {\n" +
+                "                     GLog.error(\"fundId: {}, call AP interface id: {}, svrId: {}, error={}\", EagleSessionInfoManager.getClinetFundZTFundId(), request.getRequestURI(), \"KidmService#getRemark phone DES decrypt phone = \" + phone, EagleCommonUtil.getException(e));\n" +
+                "@@ -362,11 +359,8 @@\n" +
+                "                             !(phone.length() == EagleConstant.NUMBER_11 && isNumeric(phone))\n" +
+                "                             && StringUtils.isNotBlank(secretKey)) {\n" +
+                "                         try {\n" +
+                "-// update 20220113 by LKG 手机号加密【秘钥问题修复】 ---start\n" +
+                "                             String key = secretKey.replace(\"{0}\", sdf.get().format(System.currentTimeMillis()));\n" +
+                "-                            // 秘钥只取前8位\n" +
+                "                             DES des = new DES(key);\n" +
+                "-// update 20220113 by LKG 手机号加密【秘钥问题修复】 ---end\n" +
+                "                             phone = des.decrypt(phone);\n" +
+                "                         } catch (Exception e) {\n" +
+                "                             GLog.error(\"fundId: {}, call AP interface id: {}, svrId: {}, error={}\", EagleSessionInfoManager.getClinetFundZTFundId(), request.getRequestURI(), \"KidmService#getRemark phone DES decrypt phone = \" + phone, EagleCommonUtil.getException(e));\n" +
+                "@@ -1253,14 +1247,12 @@\n" +
+                "             String errorCode = e.getErrors().get(EagleConstant.NUMBER_0).getCode();\n" +
+                "             String errorMsg = e.getErrors().get(EagleConstant.NUMBER_0).getMessage();\n" +
+                "             GLog.error(\"fundId: {}, call AP interface id：{}, svrId: {}, error: {}\", userMap.get(\"fundid\"), request.getRequestURI(), \"KidmService#getCaSign\", errorCode + EagleConstant.SPACE + errorMsg);\n" +
+                "-            retMap.put(\"flag\", EagleConstant.STR_0);\n" +
+                "-            // 校验手机验证码失败，flag返回2\n" +
+                "             if (StringUtils.equals(EagleConstant.ERROR_CODE_I0001, errorCode)) {\n" +
+                "                 retMap.put(\"errMsg\", errorMsg);\n" +
+                "-                retMap.put(\"flag\", EagleConstant.STR_2); // ca校验失败\n" +
+                "             } else {\n" +
+                "                 retMap.put(\"errMsg\", errorCode + EagleConstant.SPACE + errorMsg);\n" +
+                "             }\n" +
+                "+            retMap.put(\"flag\", EagleConstant.STR_0);\n" +
+                "         } catch (Exception e) {\n" +
+                "             GLog.error(\"fundId: {}, call AP interface id：{}, svrId: {}, error: {}\", userMap.get(\"fundid\"), request.getRequestURI(), \"KidmService#getCaSign\", e);\n" +
+                "             retMap.put(\"errMsg\", EagleConstant.ERROR_CODE_E0001 + EagleConstant.SPACE + \"预想外错误发生，CA签约失败！\");\n" +
+                "Index: zxjt-smjj/src/main/java/com/linkstec/raptor/eagle/frap/service/OtcFundService.java\n" +
+                "===================================================================\n" +
+                "--- zxjt-smjj/src/main/java/com/linkstec/raptor/eagle/frap/service/OtcFundService.java\t(版本 348988)\n" +
+                "+++ zxjt-smjj/src/main/java/com/linkstec/raptor/eagle/frap/service/OtcFundService.java\t(版本 348960)\n" +
+                "@@ -111,10 +111,6 @@\n" +
+                "\n" +
+                "         // 产品名称\n" +
+                "         retMap.put(\"ofName\", fundMap.get(\"inst_fname\"));\n" +
+                "-// update 20220125 by LKG 【需求】私募产品单向保存产品信息，单向话术用简称，不是全称  --start\n" +
+                "-        // 产品简称 新增\n" +
+                "-        retMap.put(\"ofShortName\", fundMap.get(\"productname\"));\n" +
+                "-//update 20220125 by LKG 【需求】私募产品单向保存产品信息，单向话术用简称，不是全称  --end\n" +
+                "         // 产品编码\n" +
+                "         retMap.put(\"productId\", fundMap.get(\"productid\"));\n" +
+                "         // 发行人代码\n" +
+                "Index: zxjt-smjj/src/main/java/com/linkstec/raptor/eagle/frap/service/LDSFOnlineHall3rdService.java\n" +
+                "===================================================================\n" +
+                "--- zxjt-smjj/src/main/java/com/linkstec/raptor/eagle/frap/service/LDSFOnlineHall3rdService.java\t(版本 348988)\n" +
+                "+++ zxjt-smjj/src/main/java/com/linkstec/raptor/eagle/frap/service/LDSFOnlineHall3rdService.java\t(版本 348960)\n" +
+                "@@ -44,12 +44,9 @@\n" +
+                "         String retPwd = pwd;\n" +
+                "         if (StringUtils.isNotBlank(retPwd)) {\n" +
+                "             if (StringUtils.isNotBlank(ELE_SECRET_KEY)) {\n" +
+                "-// update 20220113 by LKG 手机号加密【秘钥问题修复】 ---start\n" +
+                "-                String secretKey = ELE_SECRET_KEY.replace(\"{0}\", EagleCommonUtil.getNextDay(EagleConstant.NUMBER_0));\n" +
+                "+                ELE_SECRET_KEY = ELE_SECRET_KEY.replace(\"{0}\", EagleCommonUtil.getNextDay(EagleConstant.NUMBER_0));\n" +
+                "                 try {\n" +
+                "-                    // 秘钥只取前8位\n" +
+                "-                    DES secDes = new DES(secretKey);\n" +
+                "-// update 20220113 by LKG 手机号加密【秘钥问题修复】 ---end\n" +
+                "+                    DES secDes = new DES(ELE_SECRET_KEY);\n" +
+                "                     retPwd = secDes.decrypt(pwd);\n" +
+                "                 } catch (Exception e) {\n" +
+                "                     ;    // nothing do it\n" +
+                "Index: zxjt-smjj/src/main/resources/application-context.xml\n" +
+                "===================================================================\n" +
+                "--- zxjt-smjj/src/main/resources/application-context.xml\t(版本 348988)\n" +
+                "+++ zxjt-smjj/src/main/resources/application-context.xml\t(版本 348960)\n" +
+                "@@ -84,7 +84,6 @@\n" +
+                "                 <prop key=\"sessionTimeout\">${eagle.session.timeout:7200}</prop>\n" +
+                "                 <!-- 券商标识 -->\n" +
+                "                 <prop key=\"eagle.system.mark\">${eagle.system.mark:zxjt}</prop>\n" +
+                "-                <prop key=\"eagle.subSystem.mark\">${eagle.subSystem.mark:smjj}</prop>\n" +
+                "                 <!-- 中信建投电商平台交易秘钥 -->\n" +
+                "                 <prop key=\"eagle.ldsf.secret.key\">${eagle.ldsf.secret.key:lmspABCDE12345}</prop>\n" +
+                "                 <!-- 中投手机短信验证码接口参数 -->\n" +
+                "@@ -132,8 +131,6 @@\n" +
+                "     </bean>\n" +
+                "     <bean id=\"jedisPoolUser\" class=\"com.linkstec.raptor.eagle.common.config.SpringJedisPoolFactoryBean\">\n" +
+                "         <property name=\"server\" value=\"${redisUser.server:192.168.9.61:6379}\" />\n" +
+                "-        <!-- redis验密改造,增加密码,默认为空 -->\n" +
+                "-        <property name=\"password\" value=\"${redisUser.passWord:}\" />\n" +
+                "         <property name=\"poolConfig\" ref=\"jedisPoolUserConfig\" />\n" +
+                "     </bean>\n" +
+                "     <bean id=\"jedisResourceUser\" class=\"com.linkstec.raptor.eagle.common.ds.internal.JedisPoolResource\">\n" +
+                "Index: zxjt-smjj/src/main/resources/readme/Readme.md\n" +
+                "===================================================================\n" +
+                "--- zxjt-smjj/src/main/resources/readme/Readme.md\t(版本 348988)\n" +
+                "+++ zxjt-smjj/src/main/resources/readme/Readme.md\t(版本 348960)\n" +
+                "@@ -1,14 +1,3 @@\n" +
+                "-时间：20220126\n" +
+                "-部署版本记录：V.1.2.2.RELEASE\n" +
+                "-改修内容：\n" +
+                "-私募基金V3.9.0\n" +
+                "-1、【需求】私募产品单向保存产品信息，单向话术用简称，不是全称\n" +
+                "-2、【需求】私募双录默认展示人工和单向入口\n" +
+                "-3、redis验密改造\n" +
+                "-4、手机号加密【秘钥问题修复】\n" +
+                "-5、【技术优化】致胜调用增加apikey\n" +
+                "-6、私募基金 - 电子签约 - 兼容性优化\n" +
+                "-\n" +
+                " 时间：20211210\n" +
+                " 部署版本记录：V.1.2.1.RELEASE\n" +
+                " 改修内容：\n" +
+                "Index: zxjt-smjj/src/main/resources/smjj.properties\n" +
+                "===================================================================\n" +
+                "--- zxjt-smjj/src/main/resources/smjj.properties\t(版本 348988)\n" +
+                "+++ zxjt-smjj/src/main/resources/smjj.properties\t(版本 348960)\n" +
+                "@@ -36,8 +36,7 @@\n" +
+                " # Redis\\u670d\\u52a1\\u5668\\u5730\\u5740\n" +
+                " redisUser.server = 192.168.9.57:6379\n" +
+                " #redisUser.server = usermaster,192.168.9.25:26379,192.168.9.26:26380,192.168.9.26:26381\n" +
+                "-# redis\\u9A8C\\u5BC6\\u6539\\u9020,\\u589E\\u52A0\\u5BC6\\u7801,\\u9ED8\\u8BA4\\u4E3A\\u7A7A\n" +
+                "-redisUser.passWord =\n" +
+                "+\n" +
+                " # Redis\\u8fde\\u63a5\\u6570\\u914d\\u7f6e\\uff08\\u524d\\u7aef\\uff09\n" +
+                " frontap.redisUser.maxIdle = 5\n" +
+                " frontap.redisUser.minIdle = 5\n" +
+                "@@ -156,7 +155,4 @@\n" +
+                " eagle.sensors.eventTracking.server = https://track-test.csc.com.cn:4443/sa?project=default\n" +
+                "\n" +
+                " #\\u4ea4\\u6613\\u65f6\\u95f4\n" +
+                "-eagle.smjj.trade.time=09:00-16:00\n" +
+                "-\n" +
+                "-#\\u7f51\\u5385\\u7cfb\\u7edf\\uff1a\\u81f4\\u80dc\\u8c03\\u7528\\u589e\\u52a0apikey\n" +
+                "-eagle.system.inner.apikey = csc-ecomm-web-inner-test\n" +
+                "\\ No newline at end of file\n" +
+                "+eagle.smjj.trade.time=09:00-16:00";
 
         DiffAdapter diffAdapter = new SvnDiffAdapter();
         List<String> lines = IOUtils.readLines(new StringReader(s));

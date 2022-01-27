@@ -35,6 +35,11 @@ public class SvnDiffAdapter implements DiffAdapter {
             String line = diff.get(i);
             if (line.startsWith("Index: ")) {
                 if (!line.endsWith(".java")) {
+                    i++; // 继续向下遍历后面的行，直到找到下一个文件
+                    while (!line.startsWith("Index: ") && i < size) {
+                        i++;
+                        line = diff.get(i);
+                    }
                     continue; //非java文件不处理
                 }
                 fileDiff = new FileDiff();

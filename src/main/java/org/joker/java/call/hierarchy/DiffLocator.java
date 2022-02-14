@@ -92,7 +92,7 @@ public class DiffLocator {
         public String toString() {
             return "{" +
                     "\"module\":  " + module +
-                    "\"isFieldDiff\":  " + isFieldDiff +
+                    "\", isFieldDiff\":  " + isFieldDiff +
                     ", \"fieldDesc\": " + fieldDesc +
                     ", \"methodDesc\": " + methodDesc +
                     '}';

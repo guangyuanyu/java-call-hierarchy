@@ -14,6 +14,10 @@ public class FileDiff {
         }
 
         int index = filename.indexOf("/eagle-parent/");
+        if (index < 0) {
+            module = "";
+            return module;
+        }
         String temp = filename.substring(index + "/eagle-parent/".length());
         int end = temp.indexOf("/");
         module = temp.substring(0, end);

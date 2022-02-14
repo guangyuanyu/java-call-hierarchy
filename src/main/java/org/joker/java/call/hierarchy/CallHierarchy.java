@@ -87,6 +87,9 @@ public class CallHierarchy {
                             }
                         })
                         .map(m -> JavaParseUtil.getParentNode(m, MethodDeclaration.class).resolve())
+                        .filter(m -> {
+                            return !(m.getQualifiedName().equals(methodQualifiedName));
+                        }) // 过滤递归调用
                         .collect(Collectors.toList());
                 list.addAll(resolvedMethodDeclarations);
             }

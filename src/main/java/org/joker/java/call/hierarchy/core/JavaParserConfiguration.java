@@ -25,7 +25,8 @@ public class JavaParserConfiguration {
         return getParserConfiguration(projectPath, null, null);
     }
 
-    public static ParserConfiguration getParserConfiguration(String projectPath, Set<String> dependencySourcePathSet, Set<String> dependencyJarPathSet) throws IOException {
+    public static ParserConfiguration getParserConfiguration(String projectPath, Set<String> dependencySourcePathSet,
+            Set<String> dependencyJarPathSet) throws IOException {
         if (dependencyJarPathSet == null) {
             dependencyJarPathSet = new HashSet<>();
         }
@@ -34,20 +35,22 @@ public class JavaParserConfiguration {
 
         ParserConfiguration parserConfiguration = new ParserConfiguration();
         parserConfiguration.setAttributeComments(false);
-        parserConfiguration.setSymbolResolver(new JavaSymbolSolver(getTypeSolver(dependencySourcePathSet, dependencyJarPathSet)));
+        parserConfiguration
+                .setSymbolResolver(new JavaSymbolSolver(getTypeSolver(dependencySourcePathSet, dependencyJarPathSet)));
         return parserConfiguration;
     }
 
     public static Set<String> getMavenDependencyJarPath(String projectPath) {
         Set<String> dependencyJarPathSet = new HashSet<>();
 
-        boolean anyMatch = Arrays.stream(Path.of(projectPath).toFile().listFiles()).map(File::getName).anyMatch("pom.xml"::equals);
+        boolean anyMatch = Arrays.stream(Path.of(projectPath).toFile().listFiles()).map(File::getName)
+                .anyMatch("pom.xml"::equals);
         if (!anyMatch) {
             return dependencyJarPathSet;
         }
 
         InvocationRequest request = new DefaultInvocationRequest();
-        request.setJavaHome(new File(DefaultProperties.JAVA_HOME.getEnv()));
+        request.setJavaHome(new File(System.getProperty("java.home")));
         if (!ConfigProperties.MAVEN_SETTING.isEmpty()) {
             request.setUserSettingsFile(new File(ConfigProperties.MAVEN_SETTING));
         }
@@ -66,12 +69,13 @@ public class JavaParserConfiguration {
 
         return dependencyJarPathSet.stream()
                 .filter(f -> !f.startsWith("["))
-                .map(m -> DefaultProperties.OS_NAME.getEnv().startsWith("Win") ? m.split(";") : m.split(":"))
+                .map(m -> System.getProperty("os.name").startsWith("Win") ? m.split(";") : m.split(":"))
                 .flatMap(Arrays::stream)
                 .collect(Collectors.toSet());
     }
 
-    public static TypeSolver getTypeSolver(Set<String> dependencySourcePathSet, Set<String> dependencyJarPathSet) throws IOException {
+    public static TypeSolver getTypeSolver(Set<String> dependencySourcePathSet, Set<String> dependencyJarPathSet)
+            throws IOException {
         CombinedTypeSolver combinedTypeSolver = new CombinedTypeSolver();
 
         combinedTypeSolver.add(new ReflectionTypeSolver(false));

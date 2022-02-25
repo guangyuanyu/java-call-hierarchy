@@ -26,7 +26,7 @@ public class ConfigProperties {
         if (s.isBlank()) {
             return "";
         }
-        return Path.of(s.replace("~", DefaultProperties.USER_HOME.getEnv()))
+        return Path.of(s.replace("~", System.getProperty("user.home")))
                 .toAbsolutePath()
                 .toString();
     }

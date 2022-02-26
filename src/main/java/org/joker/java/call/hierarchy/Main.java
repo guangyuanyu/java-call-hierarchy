@@ -10,6 +10,10 @@ public class Main {
         Config config = new Config();
         // set your project path
         config.setProjectPath(ROOT_PATH);
+        // config.setJavaHomePath("");
+        config.setMavenHomePath(
+                "~/.m2/wrapper/dists/apache-maven-3.6.3-bin/1iopthnavndlasol9gbrbg6bf2/apache-maven-3.6.3");
+        // config.setMavenSettingsPath("");
         // add your project dependency project path
         // config.addDependencyProjectPath("");
         // add your project dependency jar path

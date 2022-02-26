@@ -1,14 +1,5 @@
 package org.joker.java.call.hierarchy.core;
 
-import com.github.javaparser.ParserConfiguration;
-import com.github.javaparser.symbolsolver.JavaSymbolSolver;
-import com.github.javaparser.symbolsolver.model.resolution.TypeSolver;
-import com.github.javaparser.symbolsolver.resolution.typesolvers.CombinedTypeSolver;
-import com.github.javaparser.symbolsolver.resolution.typesolvers.JarTypeSolver;
-import com.github.javaparser.symbolsolver.resolution.typesolvers.JavaParserTypeSolver;
-import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeSolver;
-import org.apache.maven.shared.invoker.*;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -19,18 +10,34 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.github.javaparser.ParserConfiguration;
+import com.github.javaparser.symbolsolver.JavaSymbolSolver;
+import com.github.javaparser.symbolsolver.model.resolution.TypeSolver;
+import com.github.javaparser.symbolsolver.resolution.typesolvers.CombinedTypeSolver;
+import com.github.javaparser.symbolsolver.resolution.typesolvers.JarTypeSolver;
+import com.github.javaparser.symbolsolver.resolution.typesolvers.JavaParserTypeSolver;
+import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeSolver;
+
+import org.apache.maven.shared.invoker.DefaultInvocationRequest;
+import org.apache.maven.shared.invoker.DefaultInvoker;
+import org.apache.maven.shared.invoker.InvocationRequest;
+import org.apache.maven.shared.invoker.Invoker;
+import org.apache.maven.shared.invoker.MavenInvocationException;
+import org.joker.java.call.hierarchy.Config;
+
 public class JavaParserConfiguration {
 
-    public static ParserConfiguration getParserConfiguration(String projectPath) throws IOException {
-        return getParserConfiguration(projectPath, null, null);
-    }
+    public static ParserConfiguration getParserConfiguration(Config config) throws IOException {
+        Set<String> dependencySourcePathSet = new HashSet<>();
+        Set<String> dependencyJarPathSet = new HashSet<>();
 
-    public static ParserConfiguration getParserConfiguration(String projectPath, Set<String> dependencySourcePathSet,
-            Set<String> dependencyJarPathSet) throws IOException {
-        if (dependencyJarPathSet == null) {
-            dependencyJarPathSet = new HashSet<>();
-        }
-        Set<String> mavenDependencyJarPath = getMavenDependencyJarPath(projectPath);
+        // add config
+        dependencySourcePathSet.addAll(config.getDependencyProjectPathSet());
+        dependencyJarPathSet.addAll(config.getDependencyJarPathSet());
+
+        // add maven class path
+        Set<String> mavenDependencyJarPath = getMavenDependencyJarPath(config.getProjectPath(),
+                config.getJavaHomePath(), config.getMavenHomePath(), config.getMavenSettingsPath());
         dependencyJarPathSet.addAll(mavenDependencyJarPath);
 
         ParserConfiguration parserConfiguration = new ParserConfiguration();
@@ -40,7 +47,8 @@ public class JavaParserConfiguration {
         return parserConfiguration;
     }
 
-    public static Set<String> getMavenDependencyJarPath(String projectPath) {
+    public static Set<String> getMavenDependencyJarPath(String projectPath, String javaHomePath, String mavenHomePath,
+            String mavenSettingsPath) {
         Set<String> dependencyJarPathSet = new HashSet<>();
 
         boolean anyMatch = Arrays.stream(Path.of(projectPath).toFile().listFiles()).map(File::getName)
@@ -51,14 +59,16 @@ public class JavaParserConfiguration {
 
         InvocationRequest request = new DefaultInvocationRequest();
         request.setJavaHome(new File(System.getProperty("java.home")));
-        if (!ConfigProperties.MAVEN_SETTING.isEmpty()) {
-            request.setUserSettingsFile(new File(ConfigProperties.MAVEN_SETTING));
+        if (!mavenSettingsPath.isBlank()) {
+            request.setUserSettingsFile(new File(mavenSettingsPath));
         }
         request.setPomFile(new File(projectPath + "/pom.xml"));
         request.setGoals(Collections.singletonList("dependency:build-classpath"));
 
         Invoker invoker = new DefaultInvoker();
-        invoker.setMavenHome(new File(ConfigProperties.MAVEN_HOME));
+        if (!mavenHomePath.isBlank()) {
+            invoker.setMavenHome(new File(mavenHomePath));
+        }
         invoker.setInputStream(InputStream.nullInputStream());
         invoker.setOutputHandler(dependencyJarPathSet::add);
         try {

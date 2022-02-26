@@ -1,16 +1,18 @@
 package org.joker.java.call.hierarchy.core;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.List;
+
 import com.github.javaparser.ParserConfiguration;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.symbolsolver.utils.SymbolSolverCollectionStrategy;
 import com.github.javaparser.utils.ProjectRoot;
 import com.github.javaparser.utils.SourceRoot;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.List;
+import org.joker.java.call.hierarchy.Config;
 
 public class JavaParserProxy {
 
@@ -29,16 +31,18 @@ public class JavaParserProxy {
         return new SourceRoot(root);
     }
 
-    public List<CompilationUnit> getCompilationUnits(SourceRoot sourceRoot) throws IOException {
+    public List<CompilationUnit> getCompilationUnits(SourceRoot sourceRoot, Config config) throws IOException {
         if (sourceRoot.getParserConfiguration().getSymbolResolver().isEmpty()) {
             // if maven project
             if (sourceRoot.getRoot().endsWith("src/main/java")) {
                 Path projectPath = sourceRoot.getRoot().getParent().getParent().getParent();
-                boolean anyMatch = Arrays.stream(projectPath.toFile().listFiles()).map(File::getName).anyMatch("pom.xml"::equals);
+                boolean anyMatch = Arrays.stream(projectPath.toFile().listFiles()).map(File::getName)
+                        .anyMatch("pom.xml"::equals);
                 if (anyMatch) {
-                    ParserConfiguration parserConfiguration = JavaParserConfiguration.getParserConfiguration(projectPath.toString());
+                    ParserConfiguration parserConfiguration = JavaParserConfiguration.getParserConfiguration(config);
                     sourceRoot.setParserConfiguration(parserConfiguration);
-                    System.out.println(String.format(">>> parser pom.xml: %s%spom.xml", sourceRoot.getRoot(), File.separator));
+                    System.out.println(
+                            String.format(">>> parser pom.xml: %s%spom.xml", sourceRoot.getRoot(), File.separator));
                 }
             }
         }

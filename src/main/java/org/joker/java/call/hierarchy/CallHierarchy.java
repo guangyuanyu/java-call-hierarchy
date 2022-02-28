@@ -1,13 +1,11 @@
 package org.joker.java.call.hierarchy;
 
 import java.io.IOException;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-import com.github.javaparser.ParserConfiguration;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
@@ -15,25 +13,17 @@ import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.resolution.SymbolResolver;
 import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
 import com.github.javaparser.resolution.types.ResolvedType;
-import com.github.javaparser.symbolsolver.utils.SymbolSolverCollectionStrategy;
-import com.github.javaparser.utils.ProjectRoot;
-import com.github.javaparser.utils.SourceRoot;
 
 import org.joker.java.call.hierarchy.core.Hierarchy;
-import org.joker.java.call.hierarchy.core.JavaParserConfiguration;
-import org.joker.java.call.hierarchy.core.JavaParserProxy;
+import org.joker.java.call.hierarchy.core.ProjectProxy;
+import org.joker.java.call.hierarchy.core.ProjectSourceProxy;
 
 public class CallHierarchy {
 
-    private JavaParserProxy javaParserProxy = new JavaParserProxy();
-    private ProjectRoot projectRoot;
-    private Config config;
+    private ProjectProxy projectProxy;
 
     public CallHierarchy(Config config) throws IOException {
-        this.config = config;
-        ParserConfiguration parserConfiguration = JavaParserConfiguration.getParserConfiguration(config);
-        projectRoot = new SymbolSolverCollectionStrategy(parserConfiguration)
-                .collect(Paths.get(config.getProjectPath()));
+        projectProxy = new ProjectProxy(config);
     }
 
     public List<ResolvedMethodDeclaration> parseMethod(String packageName, String javaName, String methodName)
@@ -41,10 +31,10 @@ public class CallHierarchy {
         List<ResolvedMethodDeclaration> list = new ArrayList<>();
         String classQualifiedName = String.format("%s.%s", packageName, javaName);
         String methodQualifiedName = String.format("%s.%s.%s", packageName, javaName, methodName);
-        List<SourceRoot> sourceRoots = javaParserProxy.getSourceRoots(projectRoot);
-        for (SourceRoot sourceRoot : sourceRoots) {
-            SymbolResolver symbolResolver = sourceRoot.getParserConfiguration().getSymbolResolver().orElseThrow();
-            List<CompilationUnit> compilationUnits = javaParserProxy.getCompilationUnits(sourceRoot, config);
+        List<ProjectSourceProxy> sourceProxies = projectProxy.getSourceProxies();
+        for (ProjectSourceProxy sourceProxy : sourceProxies) {
+            SymbolResolver symbolResolver = sourceProxy.getSymbolResolver();
+            List<CompilationUnit> compilationUnits = sourceProxy.getCompilationUnits();
             for (CompilationUnit compilationUnit : compilationUnits) {
                 List<ResolvedMethodDeclaration> resolvedMethodDeclarations = compilationUnit
                         .findAll(MethodCallExpr.class)

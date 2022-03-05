@@ -40,7 +40,8 @@ public class CallHierarchy {
                 boolean isPass = compilationUnit.getTypes().stream()
                         .allMatch(f -> f.getNameAsString().equals(className))
                         || compilationUnit.getPackageDeclaration().orElseThrow().getNameAsString().equals(packageName)
-                        || compilationUnit.getImports().stream().anyMatch(f -> f.getNameAsString().equals(packageName));
+                        || compilationUnit.getImports().stream()
+                                .anyMatch(f -> f.getNameAsString().equals(classQualifiedName));
                 if (!isPass) {
                     continue;
                 }

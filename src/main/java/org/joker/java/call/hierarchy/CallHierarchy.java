@@ -12,7 +12,6 @@ import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.resolution.SymbolResolver;
 import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
-import com.github.javaparser.resolution.types.ResolvedType;
 
 import org.joker.java.call.hierarchy.core.Hierarchy;
 import org.joker.java.call.hierarchy.core.ProjectProxy;
@@ -26,39 +25,37 @@ public class CallHierarchy {
         projectProxy = new ProjectProxy(config);
     }
 
-    public List<ResolvedMethodDeclaration> parseMethod(String packageName, String javaName, String methodName)
+    public List<ResolvedMethodDeclaration> parseMethod(String packageName, String className, String methodName,
+            int paramSize)
             throws IOException {
         List<ResolvedMethodDeclaration> list = new ArrayList<>();
-        String classQualifiedName = String.format("%s.%s", packageName, javaName);
-        String methodQualifiedName = String.format("%s.%s.%s", packageName, javaName, methodName);
+        String classQualifiedName = String.format("%s.%s", packageName, className);
         List<ProjectSourceProxy> sourceProxies = projectProxy.getSourceProxies();
         for (ProjectSourceProxy sourceProxy : sourceProxies) {
             SymbolResolver symbolResolver = sourceProxy.getSymbolResolver();
             List<CompilationUnit> compilationUnits = sourceProxy.getCompilationUnits();
             for (CompilationUnit compilationUnit : compilationUnits) {
+
+                // filter call scope
+                boolean isPass = compilationUnit.getTypes().stream()
+                        .allMatch(f -> f.getNameAsString().equals(className))
+                        || compilationUnit.getPackageDeclaration().orElseThrow().getNameAsString().equals(packageName)
+                        || compilationUnit.getImports().stream().anyMatch(f -> f.getNameAsString().equals(packageName));
+                if (!isPass) {
+                    continue;
+                }
+
                 List<ResolvedMethodDeclaration> resolvedMethodDeclarations = compilationUnit
                         .findAll(MethodCallExpr.class)
                         .stream()
-                        .filter(f -> f.getNameAsString().equals(methodName))
+                        .filter(f -> f.getNameAsString().equals(methodName) && f.getArguments().size() == paramSize)
                         .filter(f -> {
-                            try {
-                                return f.resolve().getQualifiedName().equals(methodQualifiedName);
-                            } catch (Exception e) {
-                                if (f.getScope().isEmpty()) {
-                                    return JavaParseUtil.getParentNode(f, ClassOrInterfaceDeclaration.class)
-                                            .getFullyQualifiedName().orElseThrow().equals(classQualifiedName);
-                                }
-                                ResolvedType resolvedType = symbolResolver.calculateType(f.getScope().get());
-                                if (resolvedType.isReferenceType()) {
-                                    return resolvedType.asReferenceType().getQualifiedName().equals(classQualifiedName);
-                                } else if (resolvedType.isConstraint()) {
-                                    return resolvedType.asConstraintType().getBound().asReferenceType()
-                                            .getQualifiedName().equals(classQualifiedName);
-                                } else {
-                                    System.err.println("resolve error: " + f);
-                                    return false;
-                                }
+                            if (f.getScope().isEmpty()) {
+                                return JavaParseUtil.getParentNode(f, ClassOrInterfaceDeclaration.class)
+                                        .getFullyQualifiedName().orElseThrow().equals(classQualifiedName);
                             }
+                            return symbolResolver.calculateType(f.getScope().get()).describe()
+                                    .equals(classQualifiedName);
                         })
                         .map(m -> JavaParseUtil.getParentNode(m, MethodDeclaration.class).resolve())
                         .toList();
@@ -68,18 +65,20 @@ public class CallHierarchy {
         return list;
     }
 
-    public void printParseMethod(String packageName, String javaName, String methodName) throws IOException {
+    public void printParseMethod(String packageName, String className, String methodName, int paramSize)
+            throws IOException {
         System.out.println("------ start print method call ------");
-        parseMethod(packageName, javaName, methodName)
+        parseMethod(packageName, className, methodName, paramSize)
                 .stream()
                 .map(ResolvedMethodDeclaration::getQualifiedSignature)
                 .forEach(System.out::println);
         System.out.println("------  end print method call  ------");
     }
 
-    public List<Hierarchy<ResolvedMethodDeclaration>> parseMethodRecursion(String packageName, String javaName,
-            String methodName) throws IOException {
-        List<ResolvedMethodDeclaration> resolvedMethodDeclarations = parseMethod(packageName, javaName, methodName);
+    public List<Hierarchy<ResolvedMethodDeclaration>> parseMethodRecursion(String packageName, String className,
+            String methodName, int paramSize) throws IOException {
+        List<ResolvedMethodDeclaration> resolvedMethodDeclarations = parseMethod(packageName, className, methodName,
+                paramSize);
         if (resolvedMethodDeclarations.isEmpty()) {
             return Collections.emptyList();
         }
@@ -96,7 +95,7 @@ public class CallHierarchy {
     public void parseMethodRecursion(Hierarchy<ResolvedMethodDeclaration> hierarchy) throws IOException {
         ResolvedMethodDeclaration target = hierarchy.getTarget();
         List<ResolvedMethodDeclaration> resolvedMethodDeclarations = parseMethod(target.getPackageName(),
-                target.getClassName(), target.getName());
+                target.getClassName(), target.getName(), target.getNumberOfParams());
         if (resolvedMethodDeclarations.isEmpty()) {
             return;
         }
@@ -107,9 +106,10 @@ public class CallHierarchy {
         }
     }
 
-    public void printParseMethodRecursion(String packageName, String javaName, String methodName) throws IOException {
+    public void printParseMethodRecursion(String packageName, String className, String methodName, int paramSize)
+            throws IOException {
         System.out.println("------ start print method call recursion ------");
-        parseMethodRecursion(packageName, javaName, methodName)
+        parseMethodRecursion(packageName, className, methodName, paramSize)
                 .stream()
                 .map(Hierarchy::toStringList)
                 .flatMap(Collection::stream)

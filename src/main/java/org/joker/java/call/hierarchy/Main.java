@@ -23,8 +23,9 @@ public class Main {
 
         String packageName = "org.joker.java.call.hierarchy.test";
         String javaName = "A";
-        String method = "methodA1";
-        callHierarchy.printParseMethodRecursion(packageName, javaName, method);
+        String methodName = "methodA1";
+        int paramSize = 0;
+        callHierarchy.printParseMethodRecursion(packageName, javaName, methodName, paramSize);
     }
 
 }

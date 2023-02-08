@@ -19,11 +19,23 @@ import java.util.stream.Collectors;
 
 public class DiffLocator {
 
+    /**
+     * 方法描述
+     */
     public static class MethodDesc {
+        /**
+         * 包名
+         */
         public String packageName;
 
+        /**
+         * 类名
+         */
         public String className;
 
+        /**
+         * 方法名
+         */
         public String methodName;
 
         public MethodDesc(String packageName, String className, String methodName) {
@@ -57,11 +69,23 @@ public class DiffLocator {
         }
     }
 
+    /**
+     * 字段描述
+     */
     public static class FieldDesc {
+        /**
+         * 包名
+         */
         public String packageName;
 
+        /**
+         * 类名
+         */
         public String className;
 
+        /**
+         * 字段名
+         */
         public String fieldName;
 
         public FieldDesc(String packageName, String className, String fieldName) {
@@ -80,13 +104,31 @@ public class DiffLocator {
         }
     }
 
+    /**
+     * 代码改动信息
+     */
     public static class DiffDesc {
+        /**
+         * 一个maven project 有多个module时用
+         */
         public String module;
 
+        /**
+         * 标识改动的是不是field，true-是field，false-method
+         * 默认是false
+         */
         public boolean isFieldDiff;
 
+        /**
+         * 字段改动描述，
+         * @see isFieldDiff 是true时才有值
+         */
         public FieldDesc fieldDesc;
 
+        /**
+         * 方法改动描述，
+         * @see isFieldDiff 是false时才有值
+         */
         public MethodDesc methodDesc;
 
         @Override

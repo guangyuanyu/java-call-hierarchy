@@ -86,6 +86,9 @@ public class Main {
         fieldAccessHierarchy.printFieldAccessRecursion("gmCrm", packageName, javaName, field);
     }
 
+    /**
+     * javaparser初始化，主要是设置源代码地址
+     */
     private static void init() {
         Config config = new Config();
         config.setProjectPath(sourceDir);
@@ -98,7 +101,12 @@ public class Main {
 
     private static CallHierarchy callHierarchy;
 
-    private static List<DiffLocator.DiffDesc> locateSvnDiff() throws IOException {
+    /**
+     * 从diff文件，分析代码改动行数，
+     * @return
+     * @throws IOException
+     */
+    private static List<DiffLocator.DiffDesc> locateDiff() throws IOException {
 
         String filename = diffFileName;
         List<String> lines = IOUtils.readLines(new FileReader(filename));
@@ -115,7 +123,7 @@ public class Main {
     }
 
     private static void parseControllerDiff() throws IOException {
-        List<DiffLocator.DiffDesc> diffDescs = locateSvnDiff();
+        List<DiffLocator.DiffDesc> diffDescs = locateDiff();
 
         FieldAccessHierarchy fieldAccessHierarchy = new FieldAccessHierarchy(callHierarchy);
         for (DiffLocator.DiffDesc diffDesc : diffDescs) {

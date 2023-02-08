@@ -1,5 +1,7 @@
 package org.joker.java.call.hierarchy.diff;
 
+import com.google.common.collect.Lists;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -29,6 +31,16 @@ public class FileDiff {
         }
 
         return module;
+    }
+
+    public FileDiff typeDiff(LineDiff.DiffType type) {
+        FileDiff fileDiff = new FileDiff();
+
+        fileDiff.filename = this.filename;
+        fileDiff.module = this.module;
+        fileDiff.diffSet = Lists.newArrayList(this.diffSet);
+
+        return fileDiff;
     }
 
     public List<LineDiff> diffSet = new ArrayList<>();

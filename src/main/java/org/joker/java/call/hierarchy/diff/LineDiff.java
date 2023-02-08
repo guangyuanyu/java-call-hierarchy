@@ -24,7 +24,7 @@ public class LineDiff {
         return methodName != null || fieldName != null;
     }
 
-    static enum DiffType {
+    public static enum DiffType {
         ADD(0, "add"),
 //        MODIFY(1, "modify"),
         DELETE(2, "delete")

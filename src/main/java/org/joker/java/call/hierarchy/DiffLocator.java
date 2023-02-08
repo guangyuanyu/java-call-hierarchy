@@ -9,6 +9,7 @@ import com.github.javaparser.resolution.declarations.ResolvedFieldDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
 import com.github.javaparser.utils.SourceRoot;
 import com.google.common.base.Objects;
+import org.apache.maven.shared.utils.StringUtils;
 import org.joker.java.call.hierarchy.diff.FileDiff;
 import org.joker.java.call.hierarchy.diff.LineDiff;
 
@@ -109,8 +110,10 @@ public class DiffLocator {
         List<DiffDesc> list = new ArrayList<>();
 
         Iterator<FileDiff> iter = diffs.iterator();
+        // 分析新增的代码 - method
         while (iter.hasNext()){
-            FileDiff diff = iter.next();
+            FileDiff fileDiff = iter.next();
+            FileDiff diff = fileDiff.typeDiff(LineDiff.DiffType.ADD);
             List<ResolvedMethodDeclaration> resolvedMethodDeclarations = tryLocateMethod(diff);
             Set<DiffDesc> methodDiffs = resolvedMethodDeclarations.stream().map(r -> {
                 DiffDesc diffDesc = new DiffDesc();
@@ -125,9 +128,58 @@ public class DiffLocator {
             }
         }
 
+        // 分析新增的代码 - field
         iter = diffs.iterator();
         while (iter.hasNext()) {
-            FileDiff diff = iter.next();
+            FileDiff fileDiff = iter.next();
+            FileDiff diff = fileDiff.typeDiff(LineDiff.DiffType.ADD);
+            List<ResolvedFieldDeclaration> resolvedFieldDeclarations = tryLocateField(diff);
+            Set<DiffDesc> methodDiffs = resolvedFieldDeclarations.stream().map(r -> {
+                DiffDesc diffDesc = new DiffDesc();
+                diffDesc.module = diff.getModule();
+                diffDesc.isFieldDiff = true;
+                diffDesc.fieldDesc = new FieldDesc(diff.diffSet.get(0).packageName, diff.diffSet.get(0).clazzName
+                        , r.getName());
+                return diffDesc;
+            }).collect(Collectors.toSet());
+            if (methodDiffs.size() > 0) {
+                list.addAll(methodDiffs);
+                iter.remove();
+            }
+        }
+
+        // 对于删除的代码，检查老的代码
+        String sourceDir = Main.sourceDir;
+
+        // 代码切换老版本
+        if (StringUtils.isNotBlank(Main.oldVersion)) {
+            Runtime.getRuntime().exec("cd " + sourceDir + "; git checkout " + Main.oldVersion);
+        }
+
+        // 分析删除的代码 - method
+        iter = diffs.iterator();
+        while (iter.hasNext()) {
+            FileDiff fileDiff = iter.next();
+            FileDiff diff = fileDiff.typeDiff(LineDiff.DiffType.DELETE);
+            List<ResolvedMethodDeclaration> resolvedMethodDeclarations = tryLocateMethod(diff);
+            Set<DiffDesc> methodDiffs = resolvedMethodDeclarations.stream().map(r -> {
+                DiffDesc diffDesc = new DiffDesc();
+                diffDesc.module = diff.getModule();
+                diffDesc.isFieldDiff = false;
+                diffDesc.methodDesc = new MethodDesc(r.getPackageName(), r.getClassName(), r.getName());
+                return diffDesc;
+            }).collect(Collectors.toSet());
+            if (methodDiffs.size() > 0) {
+                list.addAll(methodDiffs);
+                iter.remove();
+            }
+        }
+
+        // 分析删除的代码 - field
+        iter = diffs.iterator();
+        while (iter.hasNext()) {
+            FileDiff fileDiff = iter.next();
+            FileDiff diff = fileDiff.typeDiff(LineDiff.DiffType.DELETE);
             List<ResolvedFieldDeclaration> resolvedFieldDeclarations = tryLocateField(diff);
             Set<DiffDesc> methodDiffs = resolvedFieldDeclarations.stream().map(r -> {
                 DiffDesc diffDesc = new DiffDesc();

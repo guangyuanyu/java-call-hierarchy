@@ -17,7 +17,9 @@ public class GitDIffAdapter implements DiffAdapter {
 
     private String className;
 
-    private int startLine;
+    private int oldStartLine;
+
+    private int newStartLine;
 
     private int newFileLineNum;
 
@@ -66,17 +68,23 @@ public class GitDIffAdapter implements DiffAdapter {
                 packageName = extractPackageName();
                 fileDiff.filename = processingFile;
 
+                if (tempLine.startsWith("deleted file")) {
+                    i++;
+                }
+
                 line = diff.get(i+1);
                 if (!line.startsWith("@@")) {
-                    throw new IllegalArgumentException("diff input illegal");
+                    throw new IllegalArgumentException("diff input illegal, line="+i);
                 }
             } else if (line.startsWith("@@")) {
                 line = line.replaceAll("@@", "").trim();
                 String[] array = line.split("\\W");
-                startLine = Math.abs(Integer.parseInt(array[4].trim()));
-                oldFileLineNum = startLine;
-                newFileLineNum = startLine;
+                oldStartLine = Math.abs(Integer.parseInt(array[1].trim()));
+                newStartLine = Math.abs(Integer.parseInt(array[4].trim()));
+                oldFileLineNum = oldStartLine;
+                newFileLineNum = newStartLine;
             } else {
+                // 新增代码的场景
                 if (line.startsWith("+")) {
                     LineDiff lineDiff = new LineDiff();
                     lineDiff.lineNum = newFileLineNum;
@@ -92,6 +100,7 @@ public class GitDIffAdapter implements DiffAdapter {
                     int tempIndex = i;
                     String tempLine = diff.get(tempIndex);
                     while (tempLine.startsWith("-") && tempIndex < size) {
+                        // 如果删除了一个方法，单独处理
                         tempLine = diff.get(++tempIndex);
                     }
                     if ((tempIndex < size) && !tempLine.startsWith("+")

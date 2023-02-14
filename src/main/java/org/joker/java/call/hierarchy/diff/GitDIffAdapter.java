@@ -103,8 +103,7 @@ public class GitDIffAdapter implements DiffAdapter {
                         // 如果删除了一个方法，单独处理
                         tempLine = diff.get(++tempIndex);
                     }
-                    if ((tempIndex < size) && !tempLine.startsWith("+")
-                            || (tempIndex == size)) {
+                    if ((tempIndex < size) && !tempLine.startsWith("+") || (tempIndex == size)) {
                         for (int minusIndex = i; minusIndex < tempIndex; minusIndex++) {
                             LineDiff lineDiff = new LineDiff();
                             lineDiff.lineNum = oldFileLineNum++;

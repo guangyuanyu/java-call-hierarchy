@@ -4,7 +4,11 @@ import com.google.common.collect.Lists;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
+/**
+ * 每一个diff表示一个文档的变化
+ */
 public class FileDiff {
     public String filename;
 
@@ -38,7 +42,7 @@ public class FileDiff {
 
         fileDiff.filename = this.filename;
         fileDiff.module = this.module;
-        fileDiff.diffSet = Lists.newArrayList(this.diffSet);
+        fileDiff.diffSet = Lists.newArrayList(this.diffSet.stream().filter(diff -> diff.type == type).collect(Collectors.toList()));
 
         return fileDiff;
     }

@@ -1,9 +1,11 @@
 package org.joker.java.call.hierarchy;
 
 import org.apache.commons.io.IOUtils;
+import org.eclipse.jgit.api.errors.GitAPIException;
 import org.joker.java.call.hierarchy.diff.DiffAdapter;
 import org.joker.java.call.hierarchy.diff.FileDiff;
 import org.joker.java.call.hierarchy.diff.GitDIffAdapter;
+import org.joker.java.call.hierarchy.utils.LambdaUtils;
 
 import java.io.FileReader;
 import java.io.IOException;
@@ -16,13 +18,13 @@ public class Main {
 //    private static String sourceDir = "/data/devops/workspace/app-mallcenter/csc108-etrade-licai-backend-cfzh";
 //    private static String diffFileName = "/data/devops/workspace/app-mallcenter/csc108-etrade-licai-backend-cfzh/git_diff.txt";
 
-    public static String sourceDir = "/Users/yuguangyuan/code/csc/csc-tdx-licai-cfzh";
+    public static String sourceDir = "/Users/yuguangyuan/code/csc/migrate/git/new/csc108-etrade-licai-backend";
     public static String diffFileName = "/Users/yuguangyuan/Downloads/2-1-5-git-diff.log";
-    public static String oldVersion = "";
+    public static String oldVersion = "V3.9.0";
     public static String newVersion = "";
 
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws IOException, GitAPIException {
         init();
 //        parseMethodCall();
 //        parseFieldAccess();
@@ -32,7 +34,7 @@ public class Main {
         parseControllerDiff();
     }
 
-    public static void analysis(String sourceDir, String diffFile) throws IOException {
+    public static void analysis(String sourceDir, String diffFile) throws IOException, GitAPIException {
         Main.sourceDir = sourceDir;
         Main.diffFileName = diffFile;
         init();
@@ -106,7 +108,7 @@ public class Main {
      * @return
      * @throws IOException
      */
-    private static List<DiffLocator.DiffDesc> locateDiff() throws IOException {
+    private static List<DiffLocator.DiffDesc> locateDiff() throws IOException, GitAPIException {
 
         String filename = diffFileName;
         List<String> lines = IOUtils.readLines(new FileReader(filename));
@@ -114,7 +116,6 @@ public class Main {
         DiffAdapter diffAdapter = new GitDIffAdapter();
 
         List<FileDiff> fileDiffs = diffAdapter.toDiff(lines);
-
         DiffLocator diffLocator = new DiffLocator(callHierarchy);
         List<DiffLocator.DiffDesc> diffDescs = diffLocator.locate(fileDiffs);
         System.out.println(diffDescs);
@@ -122,20 +123,26 @@ public class Main {
         return diffDescs;
     }
 
-    private static void parseControllerDiff() throws IOException {
+    private static void parseControllerDiff() throws IOException, GitAPIException {
         List<DiffLocator.DiffDesc> diffDescs = locateDiff();
 
         FieldAccessHierarchy fieldAccessHierarchy = new FieldAccessHierarchy(callHierarchy);
-        for (DiffLocator.DiffDesc diffDesc : diffDescs) {
-            if (diffDesc.isFieldDiff) {
-                System.out.println("==================Field: " + diffDesc.fieldDesc.packageName + "." + diffDesc.fieldDesc.className + ":" + diffDesc.fieldDesc.fieldName + "========================");
-                fieldAccessHierarchy.parseFieldAccessRecursion(diffDesc.module, diffDesc.fieldDesc.packageName,
-                        diffDesc.fieldDesc.className, diffDesc.fieldDesc.fieldName);
-            } else {
-                System.out.println("==================Method: " + diffDesc.methodDesc.packageName + "." + diffDesc.methodDesc.className + ":" + diffDesc.methodDesc.methodName + "========================");
-                callHierarchy.printParseMethodRecursion(diffDesc.module, diffDesc.methodDesc.packageName,
-                        diffDesc.methodDesc.className, diffDesc.methodDesc.methodName);
-            }
-        }
+        fieldAccessHierarchy.batchPrintFieldsRecursion(LambdaUtils.filter(diffDescs, d -> d.isFieldDiff));
+        callHierarchy.batchPrintParseMethodsRecursion(LambdaUtils.filter(diffDescs, d -> !d.isFieldDiff));
+
+
+//        for (DiffLocator.DiffDesc diffDesc : diffDescs) {
+//            if (diffDesc.isFieldDiff) {
+//                System.out.println("==================Field: " + diffDesc.fieldDesc.packageName + "." + diffDesc.fieldDesc.className + ":" + diffDesc.fieldDesc.fieldName + "========================");
+//                fieldAccessHierarchy.parseFieldAccessRecursion(diffDesc.module, diffDesc.fieldDesc.packageName,
+//                        diffDesc.fieldDesc.className, diffDesc.fieldDesc.fieldName);
+//            } else {
+//                System.out.println("==================Method: " + diffDesc.methodDesc.packageName + "." + diffDesc.methodDesc.className + ":" + diffDesc.methodDesc.methodName + "========================");
+//                callHierarchy.printParseMethodRecursion(diffDesc.module, diffDesc.methodDesc.packageName,
+//                        diffDesc.methodDesc.className, diffDesc.methodDesc.methodName);
+
+//                callHierarchy.batchParseMethodsRecursion(diffDescs);
+//            }
+//        }
     }
 }

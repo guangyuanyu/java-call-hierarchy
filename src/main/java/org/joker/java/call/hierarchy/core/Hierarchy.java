@@ -1,6 +1,7 @@
 package org.joker.java.call.hierarchy.core;
 
 import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
+import org.joker.java.call.hierarchy.DiffLocator;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -12,14 +13,52 @@ public class Hierarchy<T> {
     private List<Hierarchy<T>> calls;
     private String requestMapping = null;
     private String comment;
+    private String module;
+    /**
+     * 如果是method 则是qualifiedMethodName
+     * 如果是field 则是qualifiedFieldName
+     */
+    private String qualifiedName;
 
     public Hierarchy(T target) {
         this(target, new ArrayList<>());
     }
 
+    public Hierarchy(String module, T target) {
+        this(module, target, new ArrayList<>());
+    }
+
     public Hierarchy(T target, List<Hierarchy<T>> calls) {
+        this("", target, calls);
+    }
+
+    public Hierarchy(String module, T target, List<Hierarchy<T>> calls) {
         this.target = target;
         this.calls = calls;
+        this.module = module;
+        if (target != null && target instanceof ResolvedMethodDeclaration ) {
+            ResolvedMethodDeclaration methodDeclaration = (ResolvedMethodDeclaration) target;
+            this.qualifiedName = String.format("%s.%s.%s",
+                    methodDeclaration.getPackageName(),
+                    methodDeclaration.getClassName(),
+                    methodDeclaration.getName());
+        }
+    }
+
+    public String getModule() {
+        return module;
+    }
+
+    public void setModule(String module) {
+        this.module = module;
+    }
+
+    public String getQualifiedName() {
+        return qualifiedName;
+    }
+
+    public void setQualifiedName(String qualifiedName) {
+        this.qualifiedName = qualifiedName;
     }
 
     public T getTarget() {
@@ -66,6 +105,20 @@ public class Hierarchy<T> {
         calls.add(call);
     }
 
+    public void addCalls(List<Hierarchy<T>> calls) {
+        Function<T, String> function = getFunction();
+        for (Hierarchy<T> call : calls) {
+            String s1 = function.apply(call.getTarget());
+            for (Hierarchy<T> hierarchy : calls) {
+                String s2 = function.apply(hierarchy.target);
+                if (s1.equals(s2)) {
+                    break;
+                }
+            }
+            this.calls.add(call);
+        }
+    }
+
     public List<String> toStringList() {
         Function<T, String> function = getFunction();
         String prefix = function.apply(target);
@@ -106,7 +159,7 @@ public class Hierarchy<T> {
         return list;
     }
 
-    private Function<T, String> getFunction() {
+    public Function<T, String> getFunction() {
         return declaration -> {
             if (declaration instanceof ResolvedMethodDeclaration ) {
                 ResolvedMethodDeclaration resolvedMethodDeclaration = (ResolvedMethodDeclaration) declaration;
@@ -118,4 +171,20 @@ public class Hierarchy<T> {
         };
     }
 
+    public DiffLocator.DiffDesc toDiff() {
+        DiffLocator.DiffDesc diff = new DiffLocator.DiffDesc();
+        diff.module = this.module;
+        diff.isFieldDiff = false;
+        diff.fieldDesc = null;
+        if (target instanceof ResolvedMethodDeclaration ) {
+            ResolvedMethodDeclaration methodDeclaration = (ResolvedMethodDeclaration) target;
+            diff.methodDesc = new DiffLocator.MethodDesc(
+                    methodDeclaration.getPackageName(),
+                    methodDeclaration.getClassName(),
+                    methodDeclaration.getName()
+            );
+        }
+
+        return diff;
+    }
 }

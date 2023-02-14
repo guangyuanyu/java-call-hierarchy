@@ -9,15 +9,28 @@ import com.github.javaparser.resolution.declarations.ResolvedFieldDeclaration;
 import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
 import com.github.javaparser.utils.SourceRoot;
 import com.google.common.base.Objects;
+import com.google.common.collect.Lists;
 import org.apache.maven.shared.utils.StringUtils;
+import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.Status;
+import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.lib.Ref;
 import org.joker.java.call.hierarchy.diff.FileDiff;
 import org.joker.java.call.hierarchy.diff.LineDiff;
+import org.joker.java.call.hierarchy.utils.GitRepoUtils;
 
 import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
 public class DiffLocator {
+
+    private Git git = null;
+
+    /**
+     * 标识当前是否在分析老代码
+     */
+    private boolean analyzingOldVersion = false;
 
     /**
      * 方法描述
@@ -121,13 +134,13 @@ public class DiffLocator {
 
         /**
          * 字段改动描述，
-         * @see isFieldDiff 是true时才有值
+         * isFieldDiff 是true时才有值
          */
         public FieldDesc fieldDesc;
 
         /**
          * 方法改动描述，
-         * @see isFieldDiff 是false时才有值
+         * isFieldDiff 是false时才有值
          */
         public MethodDesc methodDesc;
 
@@ -143,12 +156,21 @@ public class DiffLocator {
     }
 
     private CallHierarchy callHierarchy;
+    // 分析老版本调用链
+    private CallHierarchy oldVersionCallHierarchy;
 
     public DiffLocator(CallHierarchy callHierarchy) throws IOException {
         this.callHierarchy = callHierarchy;
+        try {
+            this.git = GitRepoUtils.gitLocal("http://gitlab.csc.com.cn/csc-it/ecomm/tdx/tdx/licai/csc108-etrade-licai-backend.git",
+                    Main.sourceDir);
+        } catch (Exception ex) {
+            System.out.println("git配置有误，可能导致分析的结果不准确，请注意");
+            ex.printStackTrace();
+        }
     }
 
-    public List<DiffDesc> locate(List<FileDiff> diffs) throws IOException {
+    public List<DiffDesc> locate(List<FileDiff> diffs) throws IOException, GitAPIException {
         List<DiffDesc> list = new ArrayList<>();
 
         Iterator<FileDiff> iter = diffs.iterator();
@@ -191,11 +213,17 @@ public class DiffLocator {
         }
 
         // 对于删除的代码，检查老的代码
-        String sourceDir = Main.sourceDir;
-
+        String currentBranch = "";
         // 代码切换老版本
         if (StringUtils.isNotBlank(Main.oldVersion)) {
-            Runtime.getRuntime().exec("cd " + sourceDir + "; git checkout " + Main.oldVersion);
+            currentBranch = git.getRepository().getBranch();
+            try {
+                gitCheckout(Main.oldVersion);
+            } catch (Exception ex) {
+                System.out.println("git配置有误，可能导致分析的结果不准确，请注意");
+                ex.printStackTrace();
+            }
+            this.analyzingOldVersion = true;
         }
 
         // 分析删除的代码 - method
@@ -237,10 +265,27 @@ public class DiffLocator {
             }
         }
 
+        // 恢复到之前的版本
+        if (StringUtils.isNotBlank(currentBranch)) {
+            gitCheckout(currentBranch);
+        }
+        // 分析新版代码
+        this.analyzingOldVersion = false;
+
         return list;
     }
 
+    private void gitCheckout(String branch) throws GitAPIException {
+        if (git == null) {
+            return;
+        }
+        git.checkout().setName(branch).call();
+    }
+
     public List<ResolvedMethodDeclaration> tryLocateMethod(FileDiff diff) throws IOException {
+        if (diff.diffSet == null || diff.diffSet.size() == 0) {
+            return Collections.emptyList();
+        }
         String packageName = diff.diffSet.get(0).packageName;
         String clazzName = diff.diffSet.get(0).clazzName;
         String qualifyName = packageName + "." + clazzName;
@@ -248,23 +293,36 @@ public class DiffLocator {
         List<LineDiff> diffSet = new ArrayList<>();
         diffSet.addAll(origin);
 
-        if (callHierarchy.sourceRoots == null) {
-            callHierarchy.sourceRoots = callHierarchy.javaParserProxy.getSourceRoots(callHierarchy.projectRoot);
+        CallHierarchy hierarchy = callHierarchy;
+        if (analyzingOldVersion) {
+            if (oldVersionCallHierarchy == null) {
+                Config config = new Config();
+                config.setProjectPath(Main.sourceDir);
+                oldVersionCallHierarchy =  new CallHierarchy(config);
+            }
+            hierarchy = oldVersionCallHierarchy;
+        }
+        return getResolvedMethodDeclarations(hierarchy, qualifyName, diffSet);
+    }
+
+    private List<ResolvedMethodDeclaration> getResolvedMethodDeclarations(CallHierarchy hierarchy, String qualifyName, List<LineDiff> diffSet) throws IOException {
+        if (hierarchy.sourceRoots == null) {
+            hierarchy.sourceRoots = hierarchy.javaParserProxy.getSourceRoots(hierarchy.projectRoot);
         }
 
         boolean found = false;
         List<ResolvedMethodDeclaration> list = new ArrayList<>();
-        for (SourceRoot sourceRoot : callHierarchy.sourceRoots) {
+        for (SourceRoot sourceRoot : hierarchy.sourceRoots) {
             if (found) {
                 break;
             }
             if (diffSet.size() <= 0) {
                 break;
             }
-            List<CompilationUnit> compilationUnits = callHierarchy.compilationUnitMap.get(sourceRoot.getRoot());
+            List<CompilationUnit> compilationUnits = hierarchy.compilationUnitMap.get(sourceRoot.getRoot());
             if (compilationUnits == null) {
-                compilationUnits = callHierarchy.javaParserProxy.getCompilationUnits(sourceRoot);
-                callHierarchy.compilationUnitMap.put(sourceRoot.getRoot(), compilationUnits);
+                compilationUnits = hierarchy.javaParserProxy.getCompilationUnits(sourceRoot);
+                hierarchy.compilationUnitMap.put(sourceRoot.getRoot(), compilationUnits);
             }
             for (CompilationUnit compilationUnit : compilationUnits) {
                 if (found) {
@@ -314,6 +372,9 @@ public class DiffLocator {
     }
 
     public List<ResolvedFieldDeclaration> tryLocateField(FileDiff diff) throws IOException {
+        if (diff.diffSet == null || diff.diffSet.size() == 0) {
+            return Collections.emptyList();
+        }
         String packageName = diff.diffSet.get(0).packageName;
         String clazzName = diff.diffSet.get(0).clazzName;
         String qualifyName = packageName + "." + clazzName;
@@ -321,19 +382,32 @@ public class DiffLocator {
         List<LineDiff> diffSet = new ArrayList<>();
         diffSet.addAll(origin);
 
-        if (callHierarchy.sourceRoots == null) {
-            callHierarchy.sourceRoots = callHierarchy.javaParserProxy.getSourceRoots(callHierarchy.projectRoot);
+        CallHierarchy hierarchy = callHierarchy;
+        if (analyzingOldVersion) {
+            if (oldVersionCallHierarchy == null) {
+                Config config = new Config();
+                config.setProjectPath(Main.sourceDir);
+                oldVersionCallHierarchy =  new CallHierarchy(config);
+            }
+            hierarchy = oldVersionCallHierarchy;
+        }
+        return getResolvedFieldDeclarations(hierarchy, qualifyName, diffSet);
+    }
+
+    private List<ResolvedFieldDeclaration> getResolvedFieldDeclarations(CallHierarchy hierarchy, String qualifyName, List<LineDiff> diffSet) throws IOException {
+        if (hierarchy.sourceRoots == null) {
+            hierarchy.sourceRoots = hierarchy.javaParserProxy.getSourceRoots(callHierarchy.projectRoot);
         }
 
         List<ResolvedFieldDeclaration> list = new ArrayList<>();
-        for (SourceRoot sourceRoot : callHierarchy.sourceRoots) {
+        for (SourceRoot sourceRoot : hierarchy.sourceRoots) {
             if (diffSet.size() <= 0) {
                 break;
             }
-            List<CompilationUnit> compilationUnits = callHierarchy.compilationUnitMap.get(sourceRoot.getRoot());
+            List<CompilationUnit> compilationUnits = hierarchy.compilationUnitMap.get(sourceRoot.getRoot());
             if (compilationUnits == null) {
-                compilationUnits = callHierarchy.javaParserProxy.getCompilationUnits(sourceRoot);
-                callHierarchy.compilationUnitMap.put(sourceRoot.getRoot(), compilationUnits);
+                compilationUnits = hierarchy.javaParserProxy.getCompilationUnits(sourceRoot);
+                hierarchy.compilationUnitMap.put(sourceRoot.getRoot(), compilationUnits);
             }
             for (CompilationUnit compilationUnit : compilationUnits) {
                 if (diffSet.size() <= 0) {

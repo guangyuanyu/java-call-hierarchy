@@ -90,9 +90,9 @@ public class FieldAccessHierarchy {
 
     public List<Hierarchy<ResolvedMethodDeclaration>> batchParseFieldsRecursion(List<DiffLocator.DiffDesc> diffs) throws IOException {
         ArrayListMultimap<String, MethodDelarationWrapper> wrapperMultimap = batchParseFields(diffs);
-        if (wrapperMultimap.isEmpty()) {
-            return Collections.emptyList();
-        }
+//        if (wrapperMultimap.isEmpty()) {
+//            return Collections.emptyList();
+//        }
 
         List<Hierarchy<ResolvedMethodDeclaration>> firstLevelHierarchies = firstLevelFieldFromDiff(diffs);
         Map<String, Hierarchy<ResolvedMethodDeclaration>> firstLevelMap = LambdaUtils.toMap(firstLevelHierarchies, h -> h.getQualifiedName());

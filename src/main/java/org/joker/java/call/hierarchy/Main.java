@@ -1,15 +1,22 @@
 package org.joker.java.call.hierarchy;
 
+import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
+import com.google.common.collect.Sets;
 import org.apache.commons.io.IOUtils;
+import org.apache.maven.shared.utils.StringUtils;
 import org.eclipse.jgit.api.errors.GitAPIException;
+import org.joker.java.call.hierarchy.core.Hierarchy;
 import org.joker.java.call.hierarchy.diff.DiffAdapter;
 import org.joker.java.call.hierarchy.diff.FileDiff;
 import org.joker.java.call.hierarchy.diff.GitDIffAdapter;
 import org.joker.java.call.hierarchy.utils.LambdaUtils;
 
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 
 public class Main {
 
@@ -17,29 +24,41 @@ public class Main {
 
 //    private static String sourceDir = "/data/devops/workspace/app-mallcenter/csc108-etrade-licai-backend-cfzh";
 //    private static String diffFileName = "/data/devops/workspace/app-mallcenter/csc108-etrade-licai-backend-cfzh/git_diff.txt";
-
-    public static String sourceDir = "/Users/yuguangyuan/code/csc/migrate/git/new/csc108-etrade-licai-backend";
-    public static String diffFileName = "/Users/yuguangyuan/Downloads/2-1-5-git-diff.log";
+//    public static String outputFile = "/data/devops/workspace/output.txt";
     public static String oldVersion = "V3.9.0";
-    public static String newVersion = "";
 
+    // 调试用的，本地配置
+//    public static String sourceDir = "/Users/yuguangyuan/code/csc/migrate/git/new/csc108-etrade-licai-backend";
+//    public static String diffFileName = "/Users/yuguangyuan/Downloads/2-1-5-git-diff.log";
+    // 多module代码测试
+    public static String sourceDir = "/Users/yuguangyuan/code/csc/migrate/git/new/eagle-maven-online";
+    public static String diffFileName = "/Users/yuguangyuan/code/csc/migrate/git/new/eagle-maven-online/diff.log";
+    public static String outputFile = "/Users/yuguangyuan/code/github/java-call-hierarchy/target/output.txt";
 
     public static void main(String[] args) throws IOException, GitAPIException {
+        long startTime = System.currentTimeMillis();
         init();
 //        parseMethodCall();
 //        parseFieldAccess();
 
 //        locateSvnDiff();
 
-        parseControllerDiff();
+//        printControllerDiff();
+
+        print2file(outputFile);
+
+        System.out.println("analyze use time: " + (System.currentTimeMillis() - startTime) + " ms");
     }
 
-    public static void analysis(String sourceDir, String diffFile) throws IOException, GitAPIException {
+
+    public static void analysis(String sourceDir, String diffFile, String outputFile, String oldVersion) throws IOException, GitAPIException {
         Main.sourceDir = sourceDir;
         Main.diffFileName = diffFile;
+        Main.outputFile = outputFile;
+        Main.oldVersion = oldVersion;
         init();
 
-        parseControllerDiff();
+        print2file(outputFile);
     }
 
 
@@ -118,18 +137,18 @@ public class Main {
         List<FileDiff> fileDiffs = diffAdapter.toDiff(lines);
         DiffLocator diffLocator = new DiffLocator(callHierarchy);
         List<DiffLocator.DiffDesc> diffDescs = diffLocator.locate(fileDiffs);
+        System.out.println("diff size:" + diffDescs.size());
         System.out.println(diffDescs);
 
         return diffDescs;
     }
 
-    private static void parseControllerDiff() throws IOException, GitAPIException {
+    private static void printControllerDiff() throws IOException, GitAPIException {
         List<DiffLocator.DiffDesc> diffDescs = locateDiff();
 
         FieldAccessHierarchy fieldAccessHierarchy = new FieldAccessHierarchy(callHierarchy);
         fieldAccessHierarchy.batchPrintFieldsRecursion(LambdaUtils.filter(diffDescs, d -> d.isFieldDiff));
         callHierarchy.batchPrintParseMethodsRecursion(LambdaUtils.filter(diffDescs, d -> !d.isFieldDiff));
-
 
 //        for (DiffLocator.DiffDesc diffDesc : diffDescs) {
 //            if (diffDesc.isFieldDiff) {
@@ -144,5 +163,76 @@ public class Main {
 //                callHierarchy.batchParseMethodsRecursion(diffDescs);
 //            }
 //        }
+    }
+
+    private static void print2file(String filename) throws IOException, GitAPIException {
+        List<DiffLocator.DiffDesc> diffDescs = locateDiff();
+
+        FieldAccessHierarchy fieldAccessHierarchy = new FieldAccessHierarchy(callHierarchy);
+
+        Set<String> outputs = Sets.newHashSet();
+        // 先处理fields
+        System.out.println("------ start batch print field call recursion ------");
+        List<Hierarchy<ResolvedMethodDeclaration>> hierarchies = fieldAccessHierarchy.batchParseFieldsRecursion(LambdaUtils.filter(diffDescs, d -> d.isFieldDiff));
+        hierarchies.stream()
+                .map(Hierarchy::toStringList)
+                .flatMap(Collection::stream)
+                .sorted()
+                .distinct()
+                .forEach(h -> {
+                    // 先 打印完整调用链
+                    System.out.println(h);
+                    String controllerUrl = "";
+                    if (h.contains(" -> ") && h.contains("Controller")) {
+                        int i = h.lastIndexOf(" -> ") + 4;
+                        controllerUrl = h.substring(i);
+                    }
+
+                    if (StringUtils.isBlank(controllerUrl) && h.contains("(url:")) {
+                        controllerUrl = h;
+                    }
+
+                    if (StringUtils.isNotBlank(controllerUrl)) {
+                        outputs.add(controllerUrl);
+                    }
+                });
+        System.out.println("------ end batch print field call recursion ------");
+
+
+        // 再处理method
+        System.out.println("------ start batch print method call recursion ------");
+        List<Hierarchy<ResolvedMethodDeclaration>> methodHierarchies
+                = callHierarchy.batchParseMethodsRecursion(LambdaUtils.filter(diffDescs, d -> !d.isFieldDiff));
+        methodHierarchies.stream()
+                .map(Hierarchy::toStringList)
+                .flatMap(Collection::stream)
+                .sorted()
+                .distinct()
+                .forEach(h -> {
+                    // 先 打印完整调用链
+                    System.out.println(h);
+                    String controllerUrl = "";
+                    if (h.contains(" -> ") && h.contains("Controller")) {
+                        int i = h.lastIndexOf(" -> ") + 4;
+                        controllerUrl = h.substring(i);
+                    }
+
+                    if (StringUtils.isBlank(controllerUrl) && h.contains("(url:")) {
+                        controllerUrl = h;
+                    }
+
+                    if (StringUtils.isNotBlank(controllerUrl)) {
+                        outputs.add(controllerUrl);
+                    }
+                });
+        System.out.println("------ end batch print field call recursion ------");
+
+        // 文件输出
+        try(FileWriter writer = new FileWriter(filename);) {
+            IOUtils.writeLines(outputs, "\n", writer);
+        } catch (Exception ex) {
+            System.err.println("analyze error");
+            ex.printStackTrace();
+        }
     }
 }

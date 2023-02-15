@@ -20,6 +20,8 @@ import org.joker.java.call.hierarchy.diff.LineDiff;
 import org.joker.java.call.hierarchy.utils.GitRepoUtils;
 
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -161,56 +163,29 @@ public class DiffLocator {
 
     public DiffLocator(CallHierarchy callHierarchy) throws IOException {
         this.callHierarchy = callHierarchy;
+        if(!initGit(Main.sourceDir)){
+            System.out.println("git配置有误，可能导致分析的结果不准确，请注意");
+        }
+    }
+
+    private boolean initGit(String path) {
         try {
             this.git = GitRepoUtils.gitLocal("http://gitlab.csc.com.cn/csc-it/ecomm/tdx/tdx/licai/csc108-etrade-licai-backend.git",
-                    Main.sourceDir);
+                    path);
+            return true;
         } catch (Exception ex) {
-            System.out.println("git配置有误，可能导致分析的结果不准确，请注意");
-            ex.printStackTrace();
+            Path parent = Paths.get(path).getParent();
+            if (parent.toFile().exists()) {
+                if(initGit(parent.toString())){
+                    return true;
+                }
+            }
         }
+        return false;
     }
 
     public List<DiffDesc> locate(List<FileDiff> diffs) throws IOException, GitAPIException {
         List<DiffDesc> list = new ArrayList<>();
-
-        Iterator<FileDiff> iter = diffs.iterator();
-        // 分析新增的代码 - method
-        while (iter.hasNext()){
-            FileDiff fileDiff = iter.next();
-            FileDiff diff = fileDiff.typeDiff(LineDiff.DiffType.ADD);
-            List<ResolvedMethodDeclaration> resolvedMethodDeclarations = tryLocateMethod(diff);
-            Set<DiffDesc> methodDiffs = resolvedMethodDeclarations.stream().map(r -> {
-                DiffDesc diffDesc = new DiffDesc();
-                diffDesc.module = diff.getModule();
-                diffDesc.isFieldDiff = false;
-                diffDesc.methodDesc = new MethodDesc(r.getPackageName(), r.getClassName(), r.getName());
-                return diffDesc;
-            }).collect(Collectors.toSet());
-            if (methodDiffs.size() > 0) {
-                list.addAll(methodDiffs);
-                iter.remove();
-            }
-        }
-
-        // 分析新增的代码 - field
-        iter = diffs.iterator();
-        while (iter.hasNext()) {
-            FileDiff fileDiff = iter.next();
-            FileDiff diff = fileDiff.typeDiff(LineDiff.DiffType.ADD);
-            List<ResolvedFieldDeclaration> resolvedFieldDeclarations = tryLocateField(diff);
-            Set<DiffDesc> methodDiffs = resolvedFieldDeclarations.stream().map(r -> {
-                DiffDesc diffDesc = new DiffDesc();
-                diffDesc.module = diff.getModule();
-                diffDesc.isFieldDiff = true;
-                diffDesc.fieldDesc = new FieldDesc(diff.diffSet.get(0).packageName, diff.diffSet.get(0).clazzName
-                        , r.getName());
-                return diffDesc;
-            }).collect(Collectors.toSet());
-            if (methodDiffs.size() > 0) {
-                list.addAll(methodDiffs);
-                iter.remove();
-            }
-        }
 
         // 对于删除的代码，检查老的代码
         String currentBranch = "";
@@ -219,15 +194,17 @@ public class DiffLocator {
             currentBranch = git.getRepository().getBranch();
             try {
                 gitCheckout(Main.oldVersion);
+                this.analyzingOldVersion = true;
+                System.out.println("切换老版本：" + Main.oldVersion);
             } catch (Exception ex) {
+                this.analyzingOldVersion = false;
                 System.out.println("git配置有误，可能导致分析的结果不准确，请注意");
                 ex.printStackTrace();
             }
-            this.analyzingOldVersion = true;
         }
 
         // 分析删除的代码 - method
-        iter = diffs.iterator();
+        Iterator<FileDiff> iter = diffs.iterator();
         while (iter.hasNext()) {
             FileDiff fileDiff = iter.next();
             FileDiff diff = fileDiff.typeDiff(LineDiff.DiffType.DELETE);
@@ -268,9 +245,52 @@ public class DiffLocator {
         // 恢复到之前的版本
         if (StringUtils.isNotBlank(currentBranch)) {
             gitCheckout(currentBranch);
+            System.out.println("切回原版本："+currentBranch);
         }
         // 分析新版代码
+        oldVersionCallHierarchy.methodName2hierarchyMap.clear();
+        oldVersionCallHierarchy = null;
         this.analyzingOldVersion = false;
+
+
+        iter = diffs.iterator();
+        // 分析新增的代码 - method
+        while (iter.hasNext()){
+            FileDiff fileDiff = iter.next();
+            FileDiff diff = fileDiff.typeDiff(LineDiff.DiffType.ADD);
+            List<ResolvedMethodDeclaration> resolvedMethodDeclarations = tryLocateMethod(diff);
+            Set<DiffDesc> methodDiffs = resolvedMethodDeclarations.stream().map(r -> {
+                DiffDesc diffDesc = new DiffDesc();
+                diffDesc.module = diff.getModule();
+                diffDesc.isFieldDiff = false;
+                diffDesc.methodDesc = new MethodDesc(r.getPackageName(), r.getClassName(), r.getName());
+                return diffDesc;
+            }).collect(Collectors.toSet());
+            if (methodDiffs.size() > 0) {
+                list.addAll(methodDiffs);
+                iter.remove();
+            }
+        }
+
+        // 分析新增的代码 - field
+        iter = diffs.iterator();
+        while (iter.hasNext()) {
+            FileDiff fileDiff = iter.next();
+            FileDiff diff = fileDiff.typeDiff(LineDiff.DiffType.ADD);
+            List<ResolvedFieldDeclaration> resolvedFieldDeclarations = tryLocateField(diff);
+            Set<DiffDesc> methodDiffs = resolvedFieldDeclarations.stream().map(r -> {
+                DiffDesc diffDesc = new DiffDesc();
+                diffDesc.module = diff.getModule();
+                diffDesc.isFieldDiff = true;
+                diffDesc.fieldDesc = new FieldDesc(diff.diffSet.get(0).packageName, diff.diffSet.get(0).clazzName
+                        , r.getName());
+                return diffDesc;
+            }).collect(Collectors.toSet());
+            if (methodDiffs.size() > 0) {
+                list.addAll(methodDiffs);
+                iter.remove();
+            }
+        }
 
         return list;
     }

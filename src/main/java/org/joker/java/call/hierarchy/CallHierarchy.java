@@ -35,7 +35,7 @@ public class CallHierarchy {
     public ProjectRoot projectRoot;
 
     List<SourceRoot> sourceRoots = null;
-    Map<Path, List<CompilationUnit>> compilationUnitMap = new HashMap<>();
+    Map<Path, List<CompilationUnit>> compilationUnitMap = new WeakHashMap<>();
 //    Map<String, List<Hierarchy>> methodName2hierarchyMap = Maps.newHashMap();
     ListMultimap<String, MethodDelarationWrapper> methodName2hierarchyMap = ArrayListMultimap.create();
 
@@ -77,6 +77,9 @@ public class CallHierarchy {
                         .stream()
                         .filter(f -> f.getNameAsString().equals(methodName))
                         .filter(f -> {
+                            if (f.toString().equals("super.preHandle(request, response, handler)")) {
+                                return false;
+                            }
                             try {
                                 return f.resolve().getQualifiedName().equals(methodQualifiedName);
                             } catch (Exception e) {
@@ -261,9 +264,11 @@ public class CallHierarchy {
             boolean found = false;
             String qualifiedMethodName = "";
             try {
-                String qualifiedName = callExpr.resolve().getQualifiedName();
-                found =  qualifiedMethodNames.contains(qualifiedName);
-                qualifiedMethodName = qualifiedName;
+                if (!callExpr.toString().equals("super.preHandle(request, response, handler)")) {
+                    String qualifiedName = callExpr.resolve().getQualifiedName();
+                    found =  qualifiedMethodNames.contains(qualifiedName);
+                    qualifiedMethodName = qualifiedName;
+                }
             } catch (Exception e) {
                 Pair<Boolean, String> pair = handleParseExeption(qualifiedClassNames, methods, symbolResolver, callExpr);
                 found = pair.a;

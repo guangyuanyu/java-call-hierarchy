@@ -78,7 +78,11 @@ public class JavaParserConfiguration {
         CombinedTypeSolver combinedTypeSolver = new CombinedTypeSolver();
 
         File file = Paths.get(projectPath, "/src/main/java").toFile();
-        combinedTypeSolver.add(new JavaParserTypeSolver(file));
+        if (file.exists()) {
+            combinedTypeSolver.add(new JavaParserTypeSolver(file));
+        } else {
+            combinedTypeSolver.add(new JavaParserTypeSolver(Paths.get(projectPath)));
+        }
 
         combinedTypeSolver.add(new ReflectionTypeSolver(false));
 

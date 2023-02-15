@@ -18,6 +18,7 @@ import com.github.javaparser.symbolsolver.utils.SymbolSolverCollectionStrategy;
 import com.github.javaparser.utils.Pair;
 import com.github.javaparser.utils.ProjectRoot;
 import com.github.javaparser.utils.SourceRoot;
+import com.google.common.base.Joiner;
 import com.google.common.collect.*;
 import org.joker.java.call.hierarchy.core.*;
 import org.joker.java.call.hierarchy.utils.LambdaUtils;
@@ -31,7 +32,6 @@ import java.util.stream.Collectors;
 public class CallHierarchy {
 
     public JavaParserProxy javaParserProxy = new JavaParserProxy();
-    public JavaParserProxy oldVersionParserProxy = new JavaParserProxy();
     public ProjectRoot projectRoot;
 
     List<SourceRoot> sourceRoots = null;
@@ -121,6 +121,7 @@ public class CallHierarchy {
      */
     private boolean needAnalyzeSource(List<DiffLocator.DiffDesc> diffs, SourceRoot sourceRoot) {
         List<String> modules = diffs.stream().map(d -> d.module).collect(Collectors.toList());
+        System.out.println("analyze modules: "+ Joiner.on('，').join(Sets.newHashSet(modules)));
         String sourcePath = sourceRoot.getRoot().toAbsolutePath().toString();
 
         /**
@@ -203,9 +204,17 @@ public class CallHierarchy {
             sourceRoots = javaParserProxy.getSourceRoots(projectRoot);
         }
 
-        for (SourceRoot sourceRoot : sourceRoots) {
-            processOneRoot(diffs, qualifiedMethodNames, qualifiedClassNames, methods, calleeToCallerMap, sourceRoot);
-        }
+        sourceRoots.parallelStream().forEach(sourceRoot -> {
+            try {
+                processOneRoot(diffs, qualifiedMethodNames, qualifiedClassNames, methods, calleeToCallerMap, sourceRoot);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+
+//        for (SourceRoot sourceRoot : sourceRoots) {
+//            processOneRoot(diffs, qualifiedMethodNames, qualifiedClassNames, methods, calleeToCallerMap, sourceRoot);
+//        }
         return calleeToCallerMap;
     }
 
@@ -236,7 +245,7 @@ public class CallHierarchy {
 
         //Todo 尝试多线程并行parse unit
 //        compilationUnits.parallelStream().forEach(compilationUnit ->
-//                processOneUnit(qualifiedMethodNames, qualifiedClassNames, methods, calleeToCallerMap, symbolResolver, compilationUnit));
+//                processCallerFromUnit(module, qualifiedMethodNames, qualifiedClassNames, methods, calleeToCallerMap, symbolResolver, compilationUnit));
         for (CompilationUnit compilationUnit : compilationUnits) {
             processCallerFromUnit(module, qualifiedMethodNames, qualifiedClassNames, methods, calleeToCallerMap, symbolResolver, compilationUnit);
         }
@@ -254,6 +263,7 @@ public class CallHierarchy {
      */
     private void processCallerFromUnit(String module, List<String> qualifiedMethodNames, List<String> qualifiedClassNames, List<String> methods, ArrayListMultimap<String, MethodDelarationWrapper> calleeToCallerMap, SymbolResolver symbolResolver, CompilationUnit compilationUnit) {
         List<MethodCallExpr> all = compilationUnit.findAll(MethodCallExpr.class);
+        ArrayListMultimap<String, MethodDelarationWrapper> localMap = ArrayListMultimap.create();
         for (MethodCallExpr callExpr : all) {
             //首先方法名要一样
             if (!methods.contains(callExpr.getName().getId())) {
@@ -285,8 +295,12 @@ public class CallHierarchy {
                 continue;
             }
             MethodDelarationWrapper wrapper = new MethodDelarationWrapper(resolvedMethodDeclaration, module);
-            calleeToCallerMap.get(qualifiedMethodName).add(wrapper);
+//            calleeToCallerMap.get(qualifiedMethodName).add(wrapper);
+            localMap.get(qualifiedMethodName).add(wrapper);
             methodName2hierarchyMap.put(qualifiedMethodName, wrapper);
+        }
+        synchronized (calleeToCallerMap) {
+            calleeToCallerMap.putAll(localMap);
         }
     }
 

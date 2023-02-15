@@ -25,14 +25,18 @@ public class Main {
 //    private static String sourceDir = "/data/devops/workspace/app-mallcenter/csc108-etrade-licai-backend-cfzh";
 //    private static String diffFileName = "/data/devops/workspace/app-mallcenter/csc108-etrade-licai-backend-cfzh/git_diff.txt";
 //    public static String outputFile = "/data/devops/workspace/output.txt";
-    public static String oldVersion = "V3.9.0";
+//    public static String oldVersion = "V3.9.0";
 
     // 调试用的，本地配置
     public static String sourceDir = "/Users/yuguangyuan/code/csc/migrate/git/new/csc108-etrade-licai-backend";
     public static String diffFileName = "/Users/yuguangyuan/Downloads/2-1-5-git-diff.log";
+    public static String oldVersion = "V3.9.0";
+
     // 多module代码测试
 //    public static String sourceDir = "/Users/yuguangyuan/code/csc/migrate/git/new/eagle-maven-online/eagle-parent";
 //    public static String diffFileName = "/Users/yuguangyuan/code/csc/migrate/git/new/eagle-maven-online/diff.log";
+//    public static String oldVersion = "master";
+
     public static String outputFile = "/Users/yuguangyuan/code/github/java-call-hierarchy/target/output.txt";
 
     public static void main(String[] args) throws IOException, GitAPIException {
@@ -180,21 +184,7 @@ public class Main {
                 .sorted()
                 .distinct()
                 .forEach(h -> {
-                    // 先 打印完整调用链
-                    System.out.println(h);
-                    String controllerUrl = "";
-                    if (h.contains(" -> ") && h.contains("Controller")) {
-                        int i = h.lastIndexOf(" -> ") + 4;
-                        controllerUrl = h.substring(i);
-                    }
-
-                    if (StringUtils.isBlank(controllerUrl) && h.contains("(url:")) {
-                        controllerUrl = h;
-                    }
-
-                    if (StringUtils.isNotBlank(controllerUrl)) {
-                        outputs.add(controllerUrl);
-                    }
+                    outputHierarchy(outputs, h);
                 });
         System.out.println("------ end batch print field call recursion ------");
 
@@ -210,20 +200,7 @@ public class Main {
                 .distinct()
                 .forEach(h -> {
                     // 先 打印完整调用链
-                    System.out.println(h);
-                    String controllerUrl = "";
-                    if (h.contains(" -> ") && h.contains("Controller")) {
-                        int i = h.lastIndexOf(" -> ") + 4;
-                        controllerUrl = h.substring(i);
-                    }
-
-                    if (StringUtils.isBlank(controllerUrl) && h.contains("(url:")) {
-                        controllerUrl = h;
-                    }
-
-                    if (StringUtils.isNotBlank(controllerUrl)) {
-                        outputs.add(controllerUrl);
-                    }
+                    outputHierarchy(outputs, h);
                 });
         System.out.println("------ end batch print field call recursion ------");
 
@@ -233,6 +210,24 @@ public class Main {
         } catch (Exception ex) {
             System.err.println("analyze error");
             ex.printStackTrace();
+        }
+    }
+
+    private static void outputHierarchy(Set<String> outputs, String h) {
+        // 先 打印完整调用链
+        System.out.println(h);
+        String controllerUrl = "";
+        if (h.contains(" -> ") && h.toLowerCase().contains("controller")) {
+            int i = h.lastIndexOf(" -> ") + 4;
+            controllerUrl = h.substring(i);
+        }
+
+        if (StringUtils.isBlank(controllerUrl) && h.contains("(url:")) {
+            controllerUrl = h;
+        }
+
+        if (StringUtils.isNotBlank(controllerUrl)) {
+            outputs.add(controllerUrl);
         }
     }
 }

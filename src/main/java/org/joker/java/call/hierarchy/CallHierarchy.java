@@ -261,7 +261,9 @@ public class CallHierarchy {
      * @param symbolResolver
      * @param compilationUnit
      */
-    private void processCallerFromUnit(String module, List<String> qualifiedMethodNames, List<String> qualifiedClassNames, List<String> methods, ArrayListMultimap<String, MethodDelarationWrapper> calleeToCallerMap, SymbolResolver symbolResolver, CompilationUnit compilationUnit) {
+    private void processCallerFromUnit(String module, List<String> qualifiedMethodNames, List<String> qualifiedClassNames,
+                                       List<String> methods, ArrayListMultimap<String, MethodDelarationWrapper> calleeToCallerMap,
+                                       SymbolResolver symbolResolver, CompilationUnit compilationUnit) {
         List<MethodCallExpr> all = compilationUnit.findAll(MethodCallExpr.class);
         ArrayListMultimap<String, MethodDelarationWrapper> localMap = ArrayListMultimap.create();
         for (MethodCallExpr callExpr : all) {
@@ -274,7 +276,8 @@ public class CallHierarchy {
             boolean found = false;
             String qualifiedMethodName = "";
             try {
-                if (!callExpr.toString().equals("super.preHandle(request, response, handler)")) {
+                String s = callExpr.toString();
+                if (canResolve(s)) {
                     String qualifiedName = callExpr.resolve().getQualifiedName();
                     found =  qualifiedMethodNames.contains(qualifiedName);
                     qualifiedMethodName = qualifiedName;
@@ -302,6 +305,34 @@ public class CallHierarchy {
         synchronized (calleeToCallerMap) {
             calleeToCallerMap.putAll(localMap);
         }
+    }
+
+    /**
+     * 是否可以解析
+     * @param s
+     * @return
+     */
+    private boolean canResolve(String s) {
+        if (s.startsWith("super") || s.startsWith("filterChain") || s.startsWith("httpclient") ||
+                s.startsWith("chain") || s.startsWith("RegistryBuilder")) {
+            return false;
+        }
+        return true;
+
+
+//        return !s.equals("super.preHandle(request, response, handler)") &&
+//                !s.equals("filterChain.doFilter(servletRequest, servletResponse)") &&
+//                !s.equals("filterChain.doFilter(requestWrapper, responseWrapper)") &&
+//                !s.equals("filterChain.doFilter(servletRequest, responseWrapper)") &&
+//                !s.equals("httpclient.execute(httpPost, responseHandler)") &&
+//                !s.equals("httpclient.execute(httpGet, responseHandler)") &&
+//                !s.equals("chain.doFilter(requestWrapper, servletResponse)") &&
+//                !s.equals("chain.doFilter(servletRequest, servletResponse)") &&
+//                !s.equals("super.postHandle(request, response, handler, modelAndView)") &&
+//                !s.equals("RegistryBuilder.<ConnectionSocketFactory>create().register(\"http\", PlainConnectionSocketFactory.INSTANCE)") &&
+//                !s.equals("RegistryBuilder.<ConnectionSocketFactory>create().register(\"http\", PlainConnectionSocketFactory.getSocketFactory()).register(\"https\", sslSocketFactory)") &&
+//                !s.equals("RegistryBuilder.<ConnectionSocketFactory>create().register(\"http\", PlainConnectionSocketFactory.INSTANCE).register(\"https\", sslsf)") &&
+//                !s.equals("chain.doFilter(request, response)");
     }
 
     /**

@@ -173,6 +173,10 @@ public class CallHierarchy {
         return module;
     }
 
+    private String methodMapKeyGenerate(String module, String qualifyMethod) {
+        return module + qualifyMethod;
+    }
+
     /**
      * 批量 尝试用parser定位到改动的method
      * 主要为了加速
@@ -191,8 +195,9 @@ public class CallHierarchy {
         for (DiffLocator.DiffDesc diff : diffs) {
             String classQualifiedName = String.format("%s.%s", diff.methodDesc.packageName, diff.methodDesc.className);
             String methodQualifiedName = String.format("%s.%s.%s", diff.methodDesc.packageName, diff.methodDesc.className, diff.methodDesc.methodName);
-            if (methodName2hierarchyMap.containsKey(methodQualifiedName)) { // 如果已经分析过这个方法就不再分析了
-                calleeToCallerMap.putAll(methodQualifiedName, methodName2hierarchyMap.get(methodQualifiedName));
+            String key = methodMapKeyGenerate(diff.module, methodQualifiedName);
+            if (methodName2hierarchyMap.containsKey(key)) { // 如果已经分析过这个方法就不再分析了
+                calleeToCallerMap.putAll(methodQualifiedName, methodName2hierarchyMap.get(key));
                 continue;
             }
             qualifiedMethodNames.add(methodQualifiedName);
@@ -300,7 +305,7 @@ public class CallHierarchy {
             MethodDelarationWrapper wrapper = new MethodDelarationWrapper(resolvedMethodDeclaration, module);
 //            calleeToCallerMap.get(qualifiedMethodName).add(wrapper);
             localMap.get(qualifiedMethodName).add(wrapper);
-            methodName2hierarchyMap.put(qualifiedMethodName, wrapper);
+            methodName2hierarchyMap.put(methodMapKeyGenerate(module, qualifiedMethodName), wrapper);
         }
         synchronized (calleeToCallerMap) {
             calleeToCallerMap.putAll(localMap);
@@ -314,7 +319,7 @@ public class CallHierarchy {
      */
     private boolean canResolve(String s) {
         if (s.startsWith("super") || s.startsWith("filterChain") || s.startsWith("httpclient") ||
-                s.startsWith("chain") || s.startsWith("RegistryBuilder")) {
+                s.startsWith("chain") || s.startsWith("RegistryBuilder") || s.startsWith("request")) {
             return false;
         }
         return true;

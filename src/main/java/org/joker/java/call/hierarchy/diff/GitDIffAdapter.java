@@ -86,15 +86,17 @@ public class GitDIffAdapter implements DiffAdapter {
             } else {
                 // 新增代码的场景
                 if (line.startsWith("+")) {
-                    LineDiff lineDiff = new LineDiff();
-                    lineDiff.lineNum = newFileLineNum;
-                    lineDiff.line = line;
-                    lineDiff.type = LineDiff.DiffType.ADD;
-                    lineDiff.filename = processingFile;
-                    lineDiff.packageName = packageName;
-                    lineDiff.clazzName = className;
+                    if (isLineNeedAnalyze(line)) {
+                        LineDiff lineDiff = new LineDiff();
+                        lineDiff.lineNum = newFileLineNum;
+                        lineDiff.line = line;
+                        lineDiff.type = LineDiff.DiffType.ADD;
+                        lineDiff.filename = processingFile;
+                        lineDiff.packageName = packageName;
+                        lineDiff.clazzName = className;
 
-                    fileDiff.diffSet.add(lineDiff);
+                        fileDiff.diffSet.add(lineDiff);
+                    }
                     newFileLineNum++;
                 } else if (line.startsWith("-")) {
                     int tempIndex = i;
@@ -105,6 +107,9 @@ public class GitDIffAdapter implements DiffAdapter {
                     }
 //                    if ((tempIndex < size) && !tempLine.startsWith("+") || (tempIndex == size)) {
                         for (int minusIndex = i; minusIndex < tempIndex; minusIndex++) {
+                            if (!isLineNeedAnalyze(diff.get(minusIndex))) {
+                                continue;
+                            }
                             LineDiff lineDiff = new LineDiff();
                             lineDiff.lineNum = oldFileLineNum++;
                             lineDiff.type = LineDiff.DiffType.DELETE;
@@ -125,6 +130,17 @@ public class GitDIffAdapter implements DiffAdapter {
         }
 
         return ret;
+    }
+
+    private boolean isLineNeedAnalyze(String line) {
+        if (line.length() <= 1) {
+            return false;
+        }
+        line = line.substring(1).trim();
+        if (line.startsWith("import ")) {
+            return false;
+        }
+        return true;
     }
 
     private String extractProcessingFile() {

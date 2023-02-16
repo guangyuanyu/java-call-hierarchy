@@ -28,14 +28,14 @@ public class Main {
 //    public static String oldVersion = "V3.9.0";
 
     // 调试用的，本地配置
-    public static String sourceDir = "/Users/yuguangyuan/code/csc/migrate/git/new/csc108-etrade-licai-backend";
-    public static String diffFileName = "/Users/yuguangyuan/Downloads/2-1-5-git-diff.log";
-    public static String oldVersion = "V3.9.0";
+//    public static String sourceDir = "/Users/yuguangyuan/code/csc/migrate/git/new/csc108-etrade-licai-backend";
+//    public static String diffFileName = "/Users/yuguangyuan/Downloads/2-1-5-git-diff.log";
+//    public static String oldVersion = "V3.9.0";
 
     // 多module代码测试
-//    public static String sourceDir = "/Users/yuguangyuan/code/csc/migrate/git/new/eagle-maven-online/eagle-parent";
-//    public static String diffFileName = "/Users/yuguangyuan/code/csc/migrate/git/new/eagle-maven-online/diff.log";
-//    public static String oldVersion = "master";
+    public static String sourceDir = "/Users/yuguangyuan/code/csc/migrate/git/new/eagle-maven-online/eagle-parent";
+    public static String diffFileName = "/Users/yuguangyuan/code/csc/migrate/git/new/eagle-maven-online/diff.log";
+    public static String oldVersion = "master";
 
     public static String outputFile = "/Users/yuguangyuan/code/github/java-call-hierarchy/target/output.txt";
 
@@ -177,7 +177,8 @@ public class Main {
         Set<String> outputs = Sets.newHashSet();
         // 先处理fields
         System.out.println("------ start batch print field call recursion ------");
-        List<Hierarchy<ResolvedMethodDeclaration>> hierarchies = fieldAccessHierarchy.batchParseFieldsRecursion(LambdaUtils.filter(diffDescs, d -> d.isFieldDiff));
+        List<Hierarchy<ResolvedMethodDeclaration>> hierarchies =
+                fieldAccessHierarchy.batchParseFieldsRecursion(LambdaUtils.filter(diffDescs, d -> d.isFieldDiff));
         hierarchies.stream()
                 .map(Hierarchy::toStringList)
                 .flatMap(Collection::stream)

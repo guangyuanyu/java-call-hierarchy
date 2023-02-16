@@ -3,10 +3,7 @@ package org.joker.java.call.hierarchy.utils;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -26,6 +23,16 @@ public class LambdaUtils {
      * @return
      */
     public static <K, T> Map<K, T> toMap(Collection<T> collection, KeyExtract<K, T> extract) {
+//        Map<K, T> map = new HashMap<>();
+//        for (T c : collection) {
+//            K key = extract.getkey(c);
+//            if (map.containsKey(key)) {
+//                System.out.println(key.toString() + " ----> " +c.toString());
+//                System.out.println(key.toString() + " ----> " +map.get(key).toString());
+//            }
+//            map.put(key, c);
+//        }
+//        return map;
         return collection.stream().collect(Collectors.toMap(extract::getkey, i -> i));
     }
 

@@ -45,8 +45,6 @@ public class GitDIffAdapter implements DiffAdapter {
                     }
                     continue; //非java文件不处理
                 }
-                fileDiff = new FileDiff();
-                ret.add(fileDiff);
 
                 //读下一行
                 i++;
@@ -60,13 +58,17 @@ public class GitDIffAdapter implements DiffAdapter {
 
                 line = diff.get(i);
                 int start = line.indexOf("/");
-                processingFile = line.substring(start);
-
-//                processingFile = line.substring(7);
-                processingClass = extractProcessingFile();
-                className = extractClassName();
-                packageName = extractPackageName();
-                fileDiff.filename = processingFile;
+                String currentProcessingFile = line.substring(start);
+                if (!currentProcessingFile.equals(processingFile)) {
+                    processingFile = currentProcessingFile;
+                    //fixme 需要根据processingFile 是否跟签一个 file一样，判断是否生成新的fileDiff
+                    processingClass = extractProcessingFile();
+                    className = extractClassName();
+                    packageName = extractPackageName();
+                    fileDiff = new FileDiff();
+                    ret.add(fileDiff);
+                    fileDiff.filename = processingFile;
+                }
 
                 if (tempLine.startsWith("deleted file")) {
                     i++;

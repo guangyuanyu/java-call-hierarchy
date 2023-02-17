@@ -10,13 +10,15 @@ public class FirstLevelHierarchy extends Hierarchy {
 
     private String methodName;
 
-    public FirstLevelHierarchy(String pack, String className, String methodName) {
+    public FirstLevelHierarchy(String module, String pack, String className, String methodName) {
         super(null);
 
+        this.setModule(module);
         this.pack = pack;
         this.className = className;
         this.methodName = methodName;
         this.setQualifiedName(String.format("%s.%s.%s", pack, className, methodName));
+        this.setQualifiedClassName(String.format("%s.%s", pack, className));
     }
 
     @Override

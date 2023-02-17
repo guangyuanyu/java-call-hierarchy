@@ -11,6 +11,7 @@ import com.github.javaparser.utils.SourceRoot;
 import com.google.common.base.Joiner;
 import com.google.common.base.Objects;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import org.apache.maven.shared.utils.StringUtils;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
@@ -116,6 +117,21 @@ public class DiffLocator {
                     ", \"fieldName\": \"" + fieldName + '\"' +
                     '}';
         }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            FieldDesc fieldDesc = (FieldDesc) o;
+            return Objects.equal(packageName, fieldDesc.packageName) &&
+                    Objects.equal(className, fieldDesc.className) &&
+                    Objects.equal(fieldName, fieldDesc.fieldName);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hashCode(packageName, className, fieldName);
+        }
     }
 
     /**
@@ -154,6 +170,22 @@ public class DiffLocator {
                     ", \"methodDesc\": " + methodDesc +
                     '}';
         }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            DiffDesc diffDesc = (DiffDesc) o;
+            return isFieldDiff == diffDesc.isFieldDiff &&
+                    Objects.equal(module, diffDesc.module) &&
+                    Objects.equal(fieldDesc, diffDesc.fieldDesc) &&
+                    Objects.equal(methodDesc, diffDesc.methodDesc);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hashCode(module, isFieldDiff, fieldDesc, methodDesc);
+        }
     }
 
     private CallHierarchy callHierarchy;
@@ -184,7 +216,8 @@ public class DiffLocator {
     }
 
     public List<DiffDesc> locate(List<FileDiff> diffs) throws IOException, GitAPIException {
-        List<DiffDesc> list = new ArrayList<>();
+//        List<DiffDesc> list = new ArrayList<>();
+        Set<DiffDesc> set = Sets.newHashSet();
 
         // 对于删除的代码，检查老的代码
         String currentBranch = "";
@@ -225,7 +258,7 @@ public class DiffLocator {
                 return diffDesc;
             }).collect(Collectors.toSet());
             if (methodDiffs.size() > 0) {
-                list.addAll(methodDiffs);
+                set.addAll(methodDiffs);
             }
         }
 
@@ -247,7 +280,7 @@ public class DiffLocator {
                 return diffDesc;
             }).collect(Collectors.toSet());
             if (methodDiffs.size() > 0) {
-                list.addAll(methodDiffs);
+                set.addAll(methodDiffs);
             }
         }
 
@@ -279,7 +312,7 @@ public class DiffLocator {
                 return diffDesc;
             }).collect(Collectors.toSet());
             if (methodDiffs.size() > 0) {
-                list.addAll(methodDiffs);
+                set.addAll(methodDiffs);
             }
         }
 
@@ -298,12 +331,12 @@ public class DiffLocator {
                 return diffDesc;
             }).collect(Collectors.toSet());
             if (methodDiffs.size() > 0) {
-                list.addAll(methodDiffs);
+                set.addAll(methodDiffs);
                 iter.remove();
             }
         }
 
-        return list;
+        return Lists.newArrayList(set);
     }
 
     private void gitCheckout(String branch) throws GitAPIException {
@@ -489,7 +522,6 @@ public class DiffLocator {
                             while (iter.hasNext()) {
                                 LineDiff line = iter.next();
                                 if (line.lineNum >= begin && line.lineNum <= end) {
-//                                    iter.remove();
                                     return true;
                                 }
                             }

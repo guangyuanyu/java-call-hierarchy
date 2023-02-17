@@ -1,5 +1,6 @@
 package org.joker.java.call.hierarchy.utils;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
@@ -69,7 +70,38 @@ public class LambdaUtils {
         return collection.stream().map(mapper).collect(Collectors.toList());
     }
 
+    public static <T, R> Set<R> toSet(Collection<T> collection, Function<? super T, ? extends R> mapper) {
+        return collection.stream().map(mapper).collect(Collectors.toSet());
+    }
+
     public static <T> List<T> filter(Collection<T> collection, Predicate<? super T> predicate) {
         return collection.stream().filter(predicate).collect(Collectors.toList());
+    }
+
+    public static <K, T> Map<K, List<T>> groupBy(Collection<T> collection, KeyExtract<K, T> extract) {
+        Map<K, List<T>> map = Maps.newHashMap();
+        collection.forEach(i -> {
+            K key = extract.getkey(i);
+            if (map.containsKey(key)) {
+                map.get(key).add(i);
+            } else {
+                map.put(key, Lists.newArrayList(i));
+            }
+        });
+        return map;
+    }
+
+    public static <K, T> Map<K, List<Integer>> value2index(List<T> collection, KeyExtract<K, T> extract) {
+        Map<K, List<Integer>> map = Maps.newHashMap();
+        for (int i = 0; i < collection.size(); i++) {
+            T t = collection.get(i);
+            K key = extract.getkey(t);
+            if (map.containsKey(key)) {
+                map.get(key).add(i);
+            } else {
+                map.put(key, Lists.newArrayList(i));
+            }
+        }
+        return map;
     }
 }

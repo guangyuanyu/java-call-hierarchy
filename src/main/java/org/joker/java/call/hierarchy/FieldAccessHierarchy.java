@@ -88,8 +88,153 @@ public class FieldAccessHierarchy {
         return resolvedMethodDeclarations;
     }
 
+    /**
+     * 批量解析fields
+     * @param diffs 只包含field diff
+     * @return
+     */
+    public ArrayListMultimap<String, MethodDelarationWrapper> batchParseFields_v2(List<DiffLocator.DiffDesc> diffs) throws IOException {
+        ArrayListMultimap<String, MethodDelarationWrapper> resolvedMethodDeclarations = ArrayListMultimap.create();
+        Map<String, List<DiffLocator.DiffDesc>> moduleGroup = LambdaUtils.groupBy(diffs, diff -> diff.module);
+        for (Map.Entry<String, List<DiffLocator.DiffDesc>> entry : moduleGroup.entrySet()) {
+            String module = entry.getKey();
+            List<DiffLocator.DiffDesc> oneModuleDiffs = entry.getValue();
+
+//            List<ResolvedMethodDeclaration> list = new ArrayList<>();
+//            String classQualifiedName = String.format("%s.%s", packageName, javaName);
+            List<String> fieldNames = LambdaUtils.toList(oneModuleDiffs, diff -> diff.fieldDesc.fieldName);
+            Map<String, List<Integer>> field2indexMap = LambdaUtils.value2index(fieldNames, f -> f);
+            List<String> qualifiedClassNames = LambdaUtils.toList(oneModuleDiffs,
+                    diff -> String.format("%s.%s", diff.fieldDesc.packageName, diff.fieldDesc.className));
+            List<String> packageNames = LambdaUtils.toList(oneModuleDiffs, diff -> diff.fieldDesc.packageName);
+            if (this.callHierarchy.sourceRoots == null) {
+                this.callHierarchy.sourceRoots = this.callHierarchy.javaParserProxy.getSourceRoots(this.callHierarchy.projectRoot);
+            }
+            for (SourceRoot sourceRoot : this.callHierarchy.sourceRoots) {
+                if (!sourceRoot.getRoot().toAbsolutePath().toString().contains(module)
+                        && !module.contains("common") && !module.contains("baseModule")) {
+                    continue;
+                }
+                SymbolResolver symbolResolver = sourceRoot.getParserConfiguration().getSymbolResolver().get();
+                List<CompilationUnit> compilationUnits = this.callHierarchy.compilationUnitMap.get(sourceRoot.getRoot());
+                if (compilationUnits == null) {
+                    compilationUnits = this.callHierarchy.javaParserProxy.getCompilationUnits(sourceRoot);
+                    this.callHierarchy.compilationUnitMap.put(sourceRoot.getRoot(), compilationUnits);
+                }
+                for (CompilationUnit compilationUnit : compilationUnits) {
+                    for (FieldAccessExpr f : compilationUnit.findAll(FieldAccessExpr.class)) {
+                        if (!fieldNames.contains(f.getNameAsString())) {
+                            continue;
+                        }
+
+                        boolean found = false;
+                        String qualifiedClassName = resolveQualifiedClassName(symbolResolver, f);
+                        if (qualifiedClassName != null) {
+                            List<Integer> indexes = field2indexMap.get(f.getNameAsString());
+                            for (Integer index : indexes) {
+                                String diffClassName = qualifiedClassNames.get(index);
+                                if (diffClassName.equals(qualifiedClassName)) {
+                                    found = true;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (!found) {
+                            continue;
+                        }
+
+                        MethodDeclaration methodDeclaration = JavaParseUtil.getParentNode(f, MethodDeclaration.class);
+                        if (methodDeclaration == null) {
+                            continue;
+                        }
+
+                        ResolvedMethodDeclaration resolve = methodDeclaration.resolve();
+                        String fieldQualifiedName = String.format("%s.%s", qualifiedClassName, f.getNameAsString());
+
+                        MethodDelarationWrapper wrapper = new MethodDelarationWrapper(resolve, module);
+                        resolvedMethodDeclarations.put(fieldQualifiedName, wrapper);
+                    }
+//
+//                    compilationUnit.findAll(FieldAccessExpr.class)
+//                            .stream()
+//                            .filter(f -> fieldNames.contains(f.getNameAsString()))
+//                            .filter(f -> {
+//                                String qualifiedClassName = resolveQualifiedClassName(symbolResolver, f);
+//                                if (qualifiedClassName != null) {
+//                                    List<Integer> indexes = field2indexMap.get(f.getNameAsString());
+//                                    for (Integer index : indexes) {
+//                                        String diffClassName = qualifiedClassNames.get(index);
+//                                        if (diffClassName.equals(qualifiedClassName)) {
+//                                            return true;
+//                                        }
+//                                    }
+//                                }
+//                                return false;
+//                            })
+//                            .filter(f -> JavaParseUtil.getParentNode(f ,MethodDeclaration.class) != null)
+////                            .map(m -> JavaParseUtil.getParentNode(m, MethodDeclaration.class).resolve())
+//                            .forEach(f -> {
+//                                ResolvedMethodDeclaration resolve = JavaParseUtil.getParentNode(f, MethodDeclaration.class).resolve();
+//                                String fieldQualifiedName = String.format("%s.%s",
+//                                        qualifiedClassName, f.getNameAsString());
+//                            });
+////                    list.addAll(resolvedMethods);
+                }
+            }
+
+            return resolvedMethodDeclarations;
+        }
+
+        //批量生产包名 and 方法名
+        for (DiffLocator.DiffDesc diff : diffs) {
+            if (diff.isFieldDiff) {
+                List<ResolvedMethodDeclaration> declarations = parseField(diff.module, diff.fieldDesc.packageName, diff.fieldDesc.className, diff.fieldDesc.fieldName);
+                for (ResolvedMethodDeclaration declaration : declarations) {
+                    String fieldQualifiedName = String.format("%s.%s.%s", diff.fieldDesc.packageName,
+                            diff.fieldDesc.className, diff.fieldDesc.fieldName);
+                    MethodDelarationWrapper wrapper = new MethodDelarationWrapper(declaration, diff.module);
+                    resolvedMethodDeclarations.put(fieldQualifiedName, wrapper);
+                }
+            }
+        }
+
+        return resolvedMethodDeclarations;
+    }
+
+    private String resolveQualifiedClassName(SymbolResolver symbolResolver, FieldAccessExpr f) {
+        String qualifiedClassName = null;
+        try {
+            qualifiedClassName = JavaParseUtil.getParentNode(((JavaParserFieldDeclaration) f.resolve()).getWrappedNode(), ClassOrInterfaceDeclaration.class)
+                    .getFullyQualifiedName().get();
+//                                return f.resolve().getName().equals(fieldQualifiedName);
+//                                    return .equals(classQualifiedName);
+        } catch (Exception e) {
+            if (f.getScope() == null) {
+                qualifiedClassName = JavaParseUtil.getParentNode(f, ClassOrInterfaceDeclaration.class).getFullyQualifiedName().get();
+            }
+            if (qualifiedClassName == null) {
+                ResolvedType resolvedType = null;
+                try {
+                    resolvedType = symbolResolver.calculateType(f.getScope());
+                } catch (Exception ex) {
+                    qualifiedClassName = JavaParseUtil.getParentNode(f, ClassOrInterfaceDeclaration.class).getFullyQualifiedName().get();
+                }
+                if (qualifiedClassName == null && resolvedType != null && resolvedType.isReferenceType()) {
+                    qualifiedClassName = resolvedType.asReferenceType().getQualifiedName();
+                } else if (qualifiedClassName == null && resolvedType != null && resolvedType.isConstraint()) {
+                    qualifiedClassName = resolvedType.asConstraintType().getBound().asReferenceType().getQualifiedName();
+                } else {
+                    System.err.println("resolve error: " + f);
+                    return null;
+                }
+            }
+        }
+        return qualifiedClassName;
+    }
+
     public List<Hierarchy<ResolvedMethodDeclaration>> batchParseFieldsRecursion(List<DiffLocator.DiffDesc> diffs) throws IOException {
-        ArrayListMultimap<String, MethodDelarationWrapper> wrapperMultimap = batchParseFields(diffs);
+        ArrayListMultimap<String, MethodDelarationWrapper> wrapperMultimap = batchParseFields_v2(diffs);
 //        if (wrapperMultimap.isEmpty()) {
 //            return Collections.emptyList();
 //        }
@@ -135,7 +280,7 @@ public class FieldAccessHierarchy {
      */
     private List<Hierarchy<ResolvedMethodDeclaration>> firstLevelFieldFromDiff(List<DiffLocator.DiffDesc> diffs) throws IOException {
         List<Hierarchy<ResolvedMethodDeclaration>> firstLevelHierarchies =
-                LambdaUtils.toList(diffs, diff -> new FirstLevelHierarchy(diff.fieldDesc.packageName, diff.fieldDesc.className, diff.fieldDesc.fieldName));
+                LambdaUtils.toList(diffs, diff -> new FirstLevelHierarchy(diff.module, diff.fieldDesc.packageName, diff.fieldDesc.className, diff.fieldDesc.fieldName));
 
         return firstLevelHierarchies;
     }

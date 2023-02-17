@@ -20,6 +20,10 @@ public class Hierarchy<T> {
      */
     private String qualifiedName;
 
+    private String qualifiedClassName;
+
+    private String methodName;
+
     public Hierarchy(T target) {
         this(target, new ArrayList<>());
     }
@@ -38,11 +42,23 @@ public class Hierarchy<T> {
         this.module = module;
         if (target != null && target instanceof ResolvedMethodDeclaration ) {
             ResolvedMethodDeclaration methodDeclaration = (ResolvedMethodDeclaration) target;
+            String packageName = methodDeclaration.getPackageName();
+            String className = methodDeclaration.getClassName();
+            String name = methodDeclaration.getName();
             this.qualifiedName = String.format("%s.%s.%s",
-                    methodDeclaration.getPackageName(),
-                    methodDeclaration.getClassName(),
-                    methodDeclaration.getName());
+                    packageName, className, name);
+            this.qualifiedClassName = String.format("%s.%s",
+                    packageName, className);
+            this.methodName = name;
         }
+    }
+
+    public String getMethodName() {
+        return methodName;
+    }
+
+    public void setMethodName(String methodName) {
+        this.methodName = methodName;
     }
 
     public String getModule() {
@@ -59,6 +75,14 @@ public class Hierarchy<T> {
 
     public void setQualifiedName(String qualifiedName) {
         this.qualifiedName = qualifiedName;
+    }
+
+    public String getQualifiedClassName() {
+        return qualifiedClassName;
+    }
+
+    public void setQualifiedClassName(String qualifiedClassName) {
+        this.qualifiedClassName = qualifiedClassName;
     }
 
     public T getTarget() {

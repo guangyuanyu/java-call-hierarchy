@@ -6,6 +6,7 @@ import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.body.TypeDeclaration;
 import com.github.javaparser.ast.expr.AnnotationExpr;
 import com.github.javaparser.ast.expr.MemberValuePair;
 import com.github.javaparser.ast.expr.MethodCallExpr;
@@ -115,26 +116,26 @@ public class CallHierarchy {
 
     /**
      * 判断改source 是否需要分析
-     * @param diffs
+     * @param modules
      * @param sourceRoot
      * @return
      */
-    private boolean needAnalyzeSource(List<DiffLocator.DiffDesc> diffs, SourceRoot sourceRoot) {
-        List<String> modules = diffs.stream().map(d -> d.module).collect(Collectors.toList());
-        System.out.println("analyze modules: "+ Joiner.on('，').join(Sets.newHashSet(modules)));
+    private boolean needAnalyzeSource(List<String> modules, SourceRoot sourceRoot) {
+        HashSet<String> moduleSet = Sets.newHashSet(modules);
+        System.out.println("analyze modules: "+ Joiner.on('，').join(moduleSet));
         String sourcePath = sourceRoot.getRoot().toAbsolutePath().toString();
 
         /**
          * 如果改了base功能，则都需要分析
          */
-        if (modules.contains("common") || modules.contains("baseModule")) {
+        if (moduleSet.contains("common") || moduleSet.contains("baseModule")) {
             return true;
         }
 
         /**
          * 如果该module被改了则需要分析
          */
-        for (String module : modules) {
+        for (String module : moduleSet) {
             if (sourcePath.contains(module)) {
                 return true;
             }
@@ -189,6 +190,7 @@ public class CallHierarchy {
         List<String> qualifiedMethodNames = new ArrayList<>();
         List<String> qualifiedClassNames = new ArrayList<>();
         List<String> methods = new ArrayList<>();
+        List<String> modules = new ArrayList<>();
 
         // 保存分析结果
         ArrayListMultimap<String, MethodDelarationWrapper> calleeToCallerMap = ArrayListMultimap.create();
@@ -203,6 +205,56 @@ public class CallHierarchy {
             qualifiedMethodNames.add(methodQualifiedName);
             qualifiedClassNames.add(classQualifiedName);
             methods.add(diff.methodDesc.methodName);
+            modules.add(diff.module);
+        }
+
+        if (this.sourceRoots == null) {
+            sourceRoots = javaParserProxy.getSourceRoots(projectRoot);
+        }
+
+//        System.out.println("source root size: " + sourceRoots.size());
+        sourceRoots.parallelStream().forEach(sourceRoot -> {
+            try {
+                processOneRoot(modules, qualifiedMethodNames, qualifiedClassNames, methods, calleeToCallerMap, sourceRoot);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+
+//        for (SourceRoot sourceRoot : sourceRoots) {
+//            processOneRoot(diffs, qualifiedMethodNames, qualifiedClassNames, methods, calleeToCallerMap, sourceRoot);
+//        }
+        return calleeToCallerMap;
+    }
+
+    /**
+     * 批量 尝试用parser定位到改动的method
+     * 主要为了加速
+     * @param diffs
+     * @return
+     * @throws IOException
+     */
+    public ArrayListMultimap<String, MethodDelarationWrapper> batchParseMethods_v2(List<DiffLocator.DiffDesc> diffs) throws IOException {
+        //批量生产包名 and 方法名
+        List<String> qualifiedMethodNames = new ArrayList<>();
+        List<String> qualifiedClassNames = new ArrayList<>();
+        List<String> methods = new ArrayList<>();
+        List<String> modules = new ArrayList<>();
+
+        // 保存分析结果
+        ArrayListMultimap<String, MethodDelarationWrapper> calleeToCallerMap = ArrayListMultimap.create();
+        for (DiffLocator.DiffDesc diff : diffs) {
+            String classQualifiedName = String.format("%s.%s", diff.methodDesc.packageName, diff.methodDesc.className);
+            String methodQualifiedName = String.format("%s.%s.%s", diff.methodDesc.packageName, diff.methodDesc.className, diff.methodDesc.methodName);
+            String key = methodMapKeyGenerate(diff.module, methodQualifiedName);
+            if (methodName2hierarchyMap.containsKey(key)) { // 如果已经分析过这个方法就不再分析了
+                calleeToCallerMap.putAll(methodQualifiedName, methodName2hierarchyMap.get(key));
+                continue;
+            }
+            qualifiedMethodNames.add(methodQualifiedName);
+            qualifiedClassNames.add(classQualifiedName);
+            methods.add(diff.methodDesc.methodName);
+            modules.add(diff.module);
         }
 
         if (this.sourceRoots == null) {
@@ -211,7 +263,7 @@ public class CallHierarchy {
 
         sourceRoots.parallelStream().forEach(sourceRoot -> {
             try {
-                processOneRoot(diffs, qualifiedMethodNames, qualifiedClassNames, methods, calleeToCallerMap, sourceRoot);
+                processOneRoot_v2(modules, qualifiedMethodNames, qualifiedClassNames, methods, calleeToCallerMap, sourceRoot);
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -225,7 +277,7 @@ public class CallHierarchy {
 
     /**
      * parse单个module
-     * @param diffs
+     * @param modules
      * @param qualifiedMethodNames
      * @param qualifiedClassNames
      * @param methods
@@ -233,9 +285,52 @@ public class CallHierarchy {
      * @param sourceRoot
      * @throws IOException
      */
-    private void processOneRoot(List<DiffLocator.DiffDesc> diffs, List<String> qualifiedMethodNames, List<String> qualifiedClassNames, List<String> methods, ArrayListMultimap<String, MethodDelarationWrapper> calleeToCallerMap, SourceRoot sourceRoot) throws IOException {
+    private void processOneRoot(List<String> modules, List<String> qualifiedMethodNames, List<String> qualifiedClassNames, List<String> methods, ArrayListMultimap<String, MethodDelarationWrapper> calleeToCallerMap, SourceRoot sourceRoot) throws IOException {
+        System.out.println("process one root " + sourceRoot.getRoot().toString() + " module size:"+modules.size() + " method size:"+qualifiedMethodNames.size() + " class size:"+qualifiedClassNames.size() + " origin method size:"+methods.size());
+//        System.out.println("process methods: " + Joiner.on(";").join(qualifiedMethodNames));
         // 不需要分析则跳过
-        if (!needAnalyzeSource(diffs, sourceRoot)) {
+//        if (!needAnalyzeSource(modules, sourceRoot)) {
+//            return;
+//        }
+        // source所在module
+        String module = extractModule(sourceRoot);
+        // 替换needAnalyzeSource方法
+        List<String> filterModules = Lists.newArrayList();
+        List<String> filterQualifiedMethods = Lists.newArrayList();
+        List<String> filterQualifiedClazzs = Lists.newArrayList();
+        List<String> filterMethods = Lists.newArrayList();
+        for (int i = 0; i < modules.size(); i++) {
+            String m = modules.get(i);
+            if (m.equals("baseModule") || m.equals("common") || m.equals(module)) {
+                filterModules.add(m);
+                filterQualifiedMethods.add(qualifiedMethodNames.get(i));
+                filterQualifiedClazzs.add(qualifiedClassNames.get(i));
+                filterMethods.add(methods.get(i));
+            }
+        }
+        if (filterMethods.size() <= 0) {
+            return;
+        }
+
+
+        SymbolResolver symbolResolver = sourceRoot.getParserConfiguration().getSymbolResolver().get();
+        List<CompilationUnit> compilationUnits = compilationUnitMap.get(sourceRoot.getRoot());
+        if (compilationUnits == null) {
+            compilationUnits = javaParserProxy.getCompilationUnits(sourceRoot);
+            compilationUnitMap.put(sourceRoot.getRoot(), compilationUnits);
+        }
+
+        //Todo 尝试多线程并行parse unit
+//        compilationUnits.parallelStream().forEach(compilationUnit ->
+//                processCallerFromUnit(module, qualifiedMethodNames, qualifiedClassNames, methods, calleeToCallerMap, symbolResolver, compilationUnit));
+        for (CompilationUnit compilationUnit : compilationUnits) {
+            processCallerFromUnit(module, filterQualifiedMethods, filterQualifiedClazzs, filterMethods, calleeToCallerMap, symbolResolver, compilationUnit);
+        }
+    }
+
+    private void processOneRoot_v2(List<String> modules, List<String> qualifiedMethodNames, List<String> qualifiedClassNames, List<String> methods, ArrayListMultimap<String, MethodDelarationWrapper> calleeToCallerMap, SourceRoot sourceRoot) throws IOException {
+        // 不需要分析则跳过
+        if (!needAnalyzeSource(modules, sourceRoot)) {
             return;
         }
         // source所在module
@@ -365,7 +460,7 @@ public class CallHierarchy {
                 Optional<String> qualifiedClassName = JavaParseUtil.getParentNode(callExpr, ClassOrInterfaceDeclaration.class).getFullyQualifiedName();
                 if (qualifiedClassName.isPresent()) {
                     eq = (qualifiedClassNames.get(index).equals(qualifiedClassName.get()));
-                    qualifiedMethodName = String.format("%s.%s", qualifiedClassName, callExpr.getNameAsString());
+                    qualifiedMethodName = String.format("%s.%s", qualifiedClassName.get(), callExpr.getNameAsString());
                 }
             }
             if (!eq) {
@@ -415,6 +510,7 @@ public class CallHierarchy {
         if (resolvedMethodDeclarations.isEmpty()) {
             return Collections.emptyList();
         }
+        System.out.println("batch parse methods from " + diffs.size() + "个 to " + resolvedMethodDeclarations.size() + "个");
 
         //Todo 从一层调用形成链
 
@@ -474,7 +570,7 @@ public class CallHierarchy {
      */
     private List<Hierarchy<ResolvedMethodDeclaration>> firstLevelMethodFromDiff(List<DiffLocator.DiffDesc> diffs) throws IOException {
         List<Hierarchy<ResolvedMethodDeclaration>> firstLevelHierarchies =
-                LambdaUtils.toList(diffs, diff -> new FirstLevelHierarchy(diff.methodDesc.packageName, diff.methodDesc.className, diff.methodDesc.methodName));
+                LambdaUtils.toList(diffs, diff -> new FirstLevelHierarchy(diff.module, diff.methodDesc.packageName, diff.methodDesc.className, diff.methodDesc.methodName));
 
         // 部分RequestMapping url 和 comment
         if (this.sourceRoots == null) {
@@ -494,6 +590,23 @@ public class CallHierarchy {
      * @param firstLevelHierarchies
      */
     private void populateFirstLevelHierarchies(SourceRoot sourceRoot, List<Hierarchy<ResolvedMethodDeclaration>> firstLevelHierarchies) throws IOException {
+        Set<String> modules = LambdaUtils.toSet(firstLevelHierarchies, h -> h.getModule());
+        Map<String, List<Hierarchy<ResolvedMethodDeclaration>>> moduleGroup = LambdaUtils.groupBy(firstLevelHierarchies, h -> h.getModule());
+        String root = sourceRoot.getRoot().toAbsolutePath().toString();
+        boolean needAnalyze = false;
+
+        List<Hierarchy<ResolvedMethodDeclaration>> tmp = null;
+        for (Map.Entry<String, List<Hierarchy<ResolvedMethodDeclaration>>> entry : moduleGroup.entrySet()) {
+            if (root.contains(entry.getKey())) {
+                needAnalyze = true;
+                tmp = entry.getValue();
+                break;
+            }
+        }
+        if (!needAnalyze) {
+            return;
+        }
+        firstLevelHierarchies = tmp;
         List<CompilationUnit> compilationUnits = compilationUnitMap.get(sourceRoot.getRoot());
         if (compilationUnits == null) {
             compilationUnits = javaParserProxy.getCompilationUnits(sourceRoot);
@@ -501,10 +614,37 @@ public class CallHierarchy {
         }
 //        Map<String, Hierarchy<ResolvedMethodDeclaration>> firstLevelMap = LambdaUtils.toMap(firstLevelHierarchies, h -> h.getQualifiedName());
         Map<String, Set<Hierarchy<ResolvedMethodDeclaration>>> firstLevelMap = LambdaUtils.toMultiMap(firstLevelHierarchies, h -> h.getQualifiedName());
+        List<String> qualifiedClazzs = LambdaUtils.toList(firstLevelHierarchies, h -> h.getQualifiedClassName());
+
+        boolean targetClass = false;
+        boolean found = false;
         for (CompilationUnit compilationUnit : compilationUnits) {
+            List<TypeDeclaration> typeDeclarations = compilationUnit.findAll(TypeDeclaration.class);
+            for (TypeDeclaration typeDeclaration : typeDeclarations) {
+                Optional<String> optional = typeDeclaration.getFullyQualifiedName();
+                if (optional.isPresent()) {
+                    String s = optional.get();
+                    if (qualifiedClazzs.contains(s)) {
+                        qualifiedClazzs.remove(s);
+                        targetClass = true;
+                        found = true;
+                        break;
+                    }
+                }
+            }
+            if (!targetClass) {
+                continue;
+            }
+
+            List<String> methodNames = LambdaUtils.toList(firstLevelHierarchies, h -> h.getMethodName());
+
             List<MethodDeclaration> declarations = compilationUnit.findAll(MethodDeclaration.class);
 
             for (MethodDeclaration methodDeclaration : declarations) {
+                String name = methodDeclaration.getNameAsString();
+                if (!methodNames.contains(name)) {
+                    continue;
+                }
                 ResolvedMethodDeclaration resolvedMethodDeclaration = methodDeclaration.resolve();
                 String temp = methodDeclaration.getDeclarationAsString(false, false, false);
                 String qualifiedMethodName = "";
@@ -514,7 +654,7 @@ public class CallHierarchy {
                             resolvedMethodDeclaration.getClassName(),
                             resolvedMethodDeclaration.getName());
                 } catch (Exception e) {
-                    System.out.println("ERROR: " + methodDeclaration.getNameAsString());
+                    System.err.println("first level parse ERROR: " + methodDeclaration.getNameAsString());
                     continue;
                 }
 
@@ -579,11 +719,13 @@ public class CallHierarchy {
      * @throws IOException
      */
     public void batchParseMethodRecursion(List<Hierarchy<ResolvedMethodDeclaration>> hierarchies) throws IOException {
+        System.out.println("start batch parse methods size:" + hierarchies.size());
         // 尝试解析controller层调用
         batchProcessControllerMethod(hierarchies);
         // hierarchy转成diff
         List<DiffLocator.DiffDesc> diffs = hierarchies.stream().map(Hierarchy::toDiff).collect(Collectors.toList());
         ArrayListMultimap<String, MethodDelarationWrapper> resolvedMethodDeclarations = batchParseMethods(diffs);
+        System.out.println("end batch parse methods get result size:" + resolvedMethodDeclarations.size());
         if (resolvedMethodDeclarations.isEmpty()) {
             return;
         }
